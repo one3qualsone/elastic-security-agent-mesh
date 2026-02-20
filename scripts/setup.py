@@ -60,6 +60,7 @@ KNOWLEDGE_BASE_INDICES = [
 ]
 
 WORKFLOW_DIRS = [
+    "agents/setup",
     "workflows/ai-agents",
     "workflows/feedback",
     "workflows/governance",

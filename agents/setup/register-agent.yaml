@@ -59,7 +59,7 @@ steps:
         agent_id: "{{ inputs.agent_id }}"
         agent_name: "{{ inputs.agent_name }}"
         domain: "{{ inputs.domain }}"
-        capabilities: {{ inputs.capabilities }}
+        capabilities: "{{ inputs.capabilities }}"
         description: "{{ inputs.description }}"
         semantic_description: "{{ inputs.agent_name }}. {{ inputs.description }}"
         keywords: "{{ inputs.keywords }}"
@@ -72,7 +72,3 @@ steps:
     type: console
     with:
       message: "Registered {{ inputs.agent_name }} ({{ inputs.agent_id }}) in domain: {{ inputs.domain }}"
-
-outputs:
-  registry_document_id:
-    value: "{{ steps.register.output._id }}"

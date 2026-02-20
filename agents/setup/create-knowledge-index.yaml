@@ -120,7 +120,3 @@ steps:
         type: console
         with:
           message: "Index {{ inputs.index_name }} created with semantic_text field using inference endpoint: {{ inputs.inference_endpoint_id }}"
-
-outputs:
-  index_name:
-    value: "{{ inputs.index_name }}"

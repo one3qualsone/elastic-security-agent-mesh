@@ -107,7 +107,3 @@ steps:
         type: console
         with:
           message: "Agent registry index created with semantic routing support."
-
-outputs:
-  index_name:
-    value: "{{ consts.registry_index }}"

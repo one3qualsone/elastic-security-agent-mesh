@@ -98,7 +98,3 @@ steps:
         type: console
         with:
           message: "Action policies index created. Seed with default policies using the setup script."
-
-outputs:
-  index_name:
-    value: "{{ consts.index_name }}"

@@ -152,7 +152,3 @@ steps:
         type: console
         with:
           message: "Investigation contexts index created with semantic search and nested evidence tracking."
-
-outputs:
-  index_name:
-    value: "{{ consts.index_name }}"
