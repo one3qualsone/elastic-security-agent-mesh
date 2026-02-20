@@ -80,7 +80,7 @@ steps:
         semantic_summary: "{{ steps.get_investigation.output.data._source.title }}. {{ inputs.resolution_summary }}"
         category: "incident-resolution"
         source: "record-incident-resolution"
-        tags: "{{ inputs.tags | default: '["incident"]' }}"
+        tags: "{{ inputs.tags | default: '[\"incident\"]' }}"
         created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
         updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
         metadata:
