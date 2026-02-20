@@ -163,7 +163,16 @@ After the automated setup completes, you create the agents in Agent Builder and 
 
 Navigate to **Agent Builder** in Kibana. For each agent, create a new agent with your LLM connector (Claude Sonnet, GPT-4o, Gemini, etc.) and assign the tools and knowledge bases listed below.
 
-Agent Builder supports four tool types: **Workflows**, **Index Search**, **ES|QL**, and **MCP**. Most tools below are workflows (imported in the previous step). The **Agent Registry** is a native **Index Search** tool pointing at the `agent-registry` index — this lets agents discover each other via semantic search without going through the orchestrator.
+Agent Builder supports four tool types: **Workflows**, **Index Search**, **ES|QL**, and **MCP**. This mesh uses Workflows and Index Search.
+
+**Adding workflow tools:** In the agent editor, click **Add tool** > **Workflow**, then select the workflow by name from the dropdown. The workflow names below match the names imported in the previous step.
+
+**Adding the Agent Registry (Index Search) tool:** Click **Add tool** > **Index Search**, then set:
+- **Index**: `agent-registry`
+- **Name**: `Agent Registry` (or any descriptive name)
+- **Description**: `Search the agent registry to find specialist agents by capability, domain, or description. Returns agent_id, agent_name, domain, capabilities, and keywords.`
+
+This gives the agent semantic search over the `agent-registry` index — it can ask "who handles compliance?" and get back the matching agent's ID to use with Call Subagent.
 
 | # | Agent Name | Workflow Tools | Index Search | Knowledge Bases |
 |---|-----------|---------------|--------------|-----------------|
