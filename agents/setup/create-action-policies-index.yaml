@@ -35,7 +35,7 @@ steps:
   - name: check_index_exists
     type: http
     with:
-      method: HEAD
+      method: GET
       url: "{{ consts.es_url }}/{{ consts.index_name }}"
       headers:
         Authorization: "ApiKey {{ consts.es_api_key }}"

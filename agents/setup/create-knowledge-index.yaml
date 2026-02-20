@@ -43,11 +43,11 @@ inputs:
     description: "Inference endpoint ID for semantic_text (e.g., .multilingual-e5-small-elasticsearch)"
     default: ".multilingual-e5-small-elasticsearch"
   - name: number_of_shards
-    type: integer
+    type: number
     description: Number of primary shards
     default: 1
   - name: number_of_replicas
-    type: integer
+    type: number
     description: Number of replica shards
     default: 1
 
@@ -60,7 +60,7 @@ steps:
   - name: check_index_exists
     type: http
     with:
-      method: HEAD
+      method: GET
       url: "{{ consts.es_url }}/{{ inputs.index_name }}"
       headers:
         Authorization: "ApiKey {{ consts.es_api_key }}"
