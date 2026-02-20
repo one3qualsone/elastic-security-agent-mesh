@@ -18,8 +18,7 @@ node_modules/
 *.log
 npm-debug.log*
 
-# Internal scripts and metadata
-scripts/
+# Internal metadata
 workflow-metadata.json
 
 # Environment and secrets
