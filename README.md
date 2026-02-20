@@ -163,9 +163,22 @@ python scripts/setup.py --delete-all      # Delete everything and re-deploy from
 
 ### Post-Setup
 
-The setup script automatically creates all tools, agents, and mesh registrations. The remaining manual steps are:
+The setup script automatically creates all workflow tools, agents, and mesh registrations. Two manual steps remain:
 
-#### Step 1: Assign LLM Connector
+#### Step 1: Create the Agent Registry Tool
+
+The Agent Builder API does not support creating `index_search` tools programmatically — this must be done in the UI:
+
+1. Navigate to **Agent Builder > Tools > Create a new tool**
+2. Set **Type** to `Index Search`
+3. Set **Target pattern** to `agent-registry`
+4. Set **Tool ID** to `security-mesh.agent-registry`
+5. Set **Description** to `Search the agent registry to discover specialist agents by capability, domain, or natural language description`
+6. Add label `security-mesh`
+7. Save the tool
+8. Assign this tool to the following agents: **Orchestrator**, **Detection Engineering**, **Security Analyst**, **Forensics**, **Compliance**, **SOC Operations** (all agents except Threat Intelligence)
+
+#### Step 2: Assign LLM Connector
 
 The API cannot assign an LLM connector to agents (this is a Kibana UI setting). After setup:
 
@@ -191,7 +204,7 @@ The setup script creates the following agents and tools from `agents/definitions
 
 For each agent, copy the `system_instructions` from the corresponding file in `agents/definitions/`. These contain the agent's persona, principles, and behavioural guidance.
 
-#### Step 2: Verify Mesh Registration
+#### Step 3: Verify Mesh Registration
 
 The setup script automatically registers all agents in the `agent-registry` index. Every agent with the **Agent Registry** index search tool can discover other agents via semantic search — the orchestrator uses it for routing, and specialist agents use it to find peers for cross-domain collaboration.
 
@@ -273,7 +286,7 @@ The registry entries below are created automatically. They're documented here fo
 | description | Manages SOC team operations — shift schedules, on-call rotas, escalation procedures, and incident coordination logistics. Can update knowledge bases with rota changes and new procedures. |
 | keywords | SOC, operations, rota, on-call, schedule, escalation, runbook, incident management, team, shift |
 
-#### Step 3: Seed Knowledge Bases
+#### Step 4: Seed Knowledge Bases
 
 Populate the knowledge base indices with domain-specific data. Use the **Add Knowledge Document** workflow or bulk-index documents directly.
 

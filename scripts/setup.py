@@ -903,10 +903,18 @@ def create_agents(tool_name_to_id):
         agent_id = slugify(agent_name)
 
         tool_ids = []
+        missing_tools = []
         for tool in agent_def.get("tools", []):
             tid = tool_name_to_id.get(tool["name"])
-            if tid:
-                tool_ids.append(tid)
+            if not tid:
+                tid = slugify(tool["name"])
+                missing_tools.append(tool["name"])
+            tool_ids.append(tid)
+
+        if missing_tools:
+            print(f"    [info] {agent_name}: {len(missing_tools)} tool(s) resolved via fallback ID:")
+            for mt in missing_tools:
+                print(f"           - {mt} → {slugify(mt)}")
 
         payload = {
             "id": agent_id,
@@ -973,7 +981,11 @@ def delete_agents():
     if isinstance(agents, dict):
         agents = agents.get("data", agents.get("items", []))
 
-    mesh_agents = [a for a in agents if a.get("id", "").startswith("security-mesh.")]
+    mesh_agents = [
+        a for a in agents
+        if a.get("id", "").startswith("security-mesh.")
+        or a.get("id", "").startswith("security-mesh-")
+    ]
     if not mesh_agents:
         print("  No security-mesh agents found.\n")
         return
