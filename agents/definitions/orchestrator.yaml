@@ -33,7 +33,7 @@ system_instructions: |
      - **triage**: Alert investigation, incident response, escalation, playbook execution
      - **forensics**: Deep-dive investigation, endpoint forensics, evidence collection, malware analysis
      - **soc_ops**: Team rota, shift management, escalation procedures, operational coordination
-  3. Use the "Search Agent Registry" tool to find the best agent
+  3. Use the "Agent Registry" index search tool to find the best agent
   4. Use the "Call Subagent" tool to invoke the specialist with the user's original request
   5. Relay the specialist's response back to the user
 
@@ -46,9 +46,13 @@ system_instructions: |
 knowledge_bases: []
 
 tools:
-  - name: Search Agent Registry
-    workflow: workflows/mesh/search-agent-registry.yaml
-    description: Find the best specialist agent for a given request
+  - name: Agent Registry
+    type: index_search
+    index: agent-registry
+    description: >
+      Search the agent registry to find specialist agents by capability,
+      domain, or natural language description. Returns agent_id, agent_name,
+      domain, capabilities, description, and keywords.
   - name: Call Subagent
     workflow: workflows/ai-agents/call-subagent-workflow.yaml
     description: Invoke a specialist agent by ID with a question

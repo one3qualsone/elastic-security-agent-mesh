@@ -66,6 +66,10 @@ tools:
   - name: Add Knowledge Document
     workflow: workflows/knowledge/add-knowledge-document.yaml
     description: Add new regulatory content to the knowledge base
+  - name: Agent Registry
+    type: index_search
+    index: agent-registry
+    description: Search the agent registry to discover specialist agents by capability or domain
   - name: Call Subagent
     workflow: workflows/ai-agents/call-subagent-workflow.yaml
     description: Invoke detection engineering agent to check rule coverage

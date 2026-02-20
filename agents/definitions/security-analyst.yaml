@@ -77,6 +77,10 @@ tools:
   - name: IP Reputation Check
     workflow: workflows/security/enrichment/ip-reputation-check.yaml
     description: Check IP reputation via AbuseIPDB with geolocation
+  - name: Agent Registry
+    type: index_search
+    index: agent-registry
+    description: Search the agent registry to discover specialist agents by capability or domain
   - name: Call Subagent
     workflow: workflows/ai-agents/call-subagent-workflow.yaml
     description: Invoke a specialist agent (threat intel, forensics, etc.)

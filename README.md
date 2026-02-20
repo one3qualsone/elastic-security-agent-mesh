@@ -163,17 +163,17 @@ After the automated setup completes, you create the agents in Agent Builder and 
 
 Navigate to **Agent Builder** in Kibana. For each agent, create a new agent with your LLM connector (Claude Sonnet, GPT-4o, Gemini, etc.) and assign the tools and knowledge bases listed below.
 
-> **Tools are workflows.** In Agent Builder, when you add a "tool" to an agent, you select from the workflows imported in the previous step. The tool names below match the workflow names in Kibana.
+Agent Builder supports four tool types: **Workflows**, **Index Search**, **ES|QL**, and **MCP**. Most tools below are workflows (imported in the previous step). The **Agent Registry** is a native **Index Search** tool pointing at the `agent-registry` index — this lets agents discover each other via semantic search without going through the orchestrator.
 
-| # | Agent Name | Tools (Workflow Names) | Knowledge Bases |
-|---|-----------|------------------------|-----------------|
-| 1 | **Security Mesh Orchestrator** | Search Agent Registry, Call Subagent | *None* |
-| 2 | **Detection Engineering Agent** | List Detection Rules, Get Rule Details, Create Detection Rule, Enable/Disable Rule, Search Rules by MITRE Technique, Evaluate MITRE Coverage, Check Field Availability, Check Action Policy, Create Investigation, Add Evidence, Semantic Knowledge Search, Web Search, Add Knowledge Document, Call Subagent | kb-detection-rules, kb-ecs-schema, kb-mitre-attack |
-| 3 | **Threat Intelligence Agent** | VT File Hash Report, VT File Upload, VT URL Scan, VT URL Report, VT Domain Report, VT IP Report, IP Reputation Check, Web Search, Semantic Knowledge Search, Add Knowledge Document | kb-threat-intel, kb-ioc-history |
-| 4 | **Security Analyst Agent** | Semantic Knowledge Search, Tag Alert as True Positive, Tag Alert as False Positive, Close Alert, Acknowledge Alert, Create Case, Add Knowledge Document, VT File Hash Report, VT IP Report, VT Domain Report, IP Reputation Check, Call Subagent | kb-incidents, kb-playbooks |
-| 5 | **Forensics Agent** | Execute Command on Endpoint, Execute and Retrieve, Get Action Status, Semantic Knowledge Search, Add Knowledge Document, VT File Hash Report, VT IP Report, Call Subagent | kb-forensics |
-| 6 | **Compliance Agent** | Semantic Knowledge Search, Web Search, Add Knowledge Document, Call Subagent | kb-compliance |
-| 7 | **SOC Operations Agent** | Semantic Knowledge Search, Add Knowledge Document, Update Knowledge Document, Remove Knowledge Document, Call Subagent | kb-soc-ops, kb-runbooks |
+| # | Agent Name | Workflow Tools | Index Search | Knowledge Bases |
+|---|-----------|---------------|--------------|-----------------|
+| 1 | **Security Mesh Orchestrator** | Call Subagent | agent-registry | *None* |
+| 2 | **Detection Engineering Agent** | List Detection Rules, Get Rule Details, Create Detection Rule, Enable/Disable Rule, Search Rules by MITRE Technique, Evaluate MITRE Coverage, Check Field Availability, Check Action Policy, Create Investigation, Add Evidence, Semantic Knowledge Search, Web Search, Add Knowledge Document, Call Subagent | agent-registry | kb-detection-rules, kb-ecs-schema, kb-mitre-attack |
+| 3 | **Threat Intelligence Agent** | VT File Hash Report, VT File Upload, VT URL Scan, VT URL Report, VT Domain Report, VT IP Report, IP Reputation Check, Web Search, Semantic Knowledge Search, Add Knowledge Document | *None* | kb-threat-intel, kb-ioc-history |
+| 4 | **Security Analyst Agent** | Semantic Knowledge Search, Tag Alert as True Positive, Tag Alert as False Positive, Close Alert, Acknowledge Alert, Create Case, Add Knowledge Document, VT File Hash Report, VT IP Report, VT Domain Report, IP Reputation Check, Call Subagent | agent-registry | kb-incidents, kb-playbooks |
+| 5 | **Forensics Agent** | Execute Command on Endpoint, Execute and Retrieve, Get Action Status, Semantic Knowledge Search, Add Knowledge Document, VT File Hash Report, VT IP Report, Call Subagent | agent-registry | kb-forensics |
+| 6 | **Compliance Agent** | Semantic Knowledge Search, Web Search, Add Knowledge Document, Call Subagent | agent-registry | kb-compliance |
+| 7 | **SOC Operations Agent** | Semantic Knowledge Search, Add Knowledge Document, Update Knowledge Document, Remove Knowledge Document, Call Subagent | agent-registry | kb-soc-ops, kb-runbooks |
 
 For each agent, copy the `system_instructions` from the corresponding file in `agents/definitions/`. These contain the agent's persona, principles, and behavioural guidance.
 
@@ -181,7 +181,7 @@ For each agent, copy the `system_instructions` from the corresponding file in `a
 
 After creating each agent in Agent Builder, note its **Agent ID** (visible in the browser URL bar when editing the agent, e.g., `/app/agent_builder/agents/<agent-id>`).
 
-Run the **Register Agent** workflow in Kibana for each agent. This adds the agent to the `agent-registry` Elasticsearch index so the orchestrator can discover it via semantic search.
+Run the **Register Agent** workflow in Kibana for each agent. This adds the agent to the `agent-registry` Elasticsearch index. Every agent with the **Agent Registry** index search tool can then discover other agents via semantic search on this index — the orchestrator uses it for routing, and specialist agents use it to find peers for cross-domain collaboration.
 
 **Orchestrator:**
 | Field | Value |

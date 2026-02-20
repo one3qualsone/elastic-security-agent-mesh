@@ -76,6 +76,10 @@ tools:
   - name: VT IP Report
     workflow: workflows/security/enrichment/vt-ip-report.yaml
     description: Get a VirusTotal threat report for an IP found in forensic evidence
+  - name: Agent Registry
+    type: index_search
+    index: agent-registry
+    description: Search the agent registry to discover specialist agents by capability or domain
   - name: Call Subagent
     workflow: workflows/ai-agents/call-subagent-workflow.yaml
     description: Invoke another agent (e.g., threat intel for IOC enrichment)
