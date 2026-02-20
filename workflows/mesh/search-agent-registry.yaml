@@ -86,10 +86,3 @@ steps:
         No matching agent found for this request.
         {% endif %}
 
-outputs:
-  agent_id:
-    value: "{{ steps.search_registry.output.hits.hits[0]._source.agent_id }}"
-  agent_name:
-    value: "{{ steps.search_registry.output.hits.hits[0]._source.agent_name }}"
-  domain:
-    value: "{{ steps.search_registry.output.hits.hits[0]._source.domain }}"

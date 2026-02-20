@@ -34,9 +34,9 @@ inputs:
     required: true
     default: "expires_at"
   - name: max_results
-    type: integer
+    type: number
     description: Maximum number of stale documents to return
-    default: 50
+    default: "50"
 
 steps:
 
@@ -57,8 +57,7 @@ steps:
 
       - name: log_stale_documents
         type: foreach
-        with:
-          items: "{{ steps.find_stale_documents.output.hits.hits }}"
+        foreach: "{{ steps.find_stale_documents.output.hits.hits }}"
         steps:
           - name: log_stale_doc
             type: console
@@ -77,6 +76,3 @@ steps:
         with:
           message: "No stale documents found in {{ inputs.index_name }} (checked field: {{ inputs.date_field }})"
 
-outputs:
-  stale_count:
-    value: "{{ steps.find_stale_documents.output.hits.total.value }}"

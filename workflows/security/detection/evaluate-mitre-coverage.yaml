@@ -70,7 +70,7 @@ steps:
     with:
       index: kb-mitre-attack
       size: 0
-      aggs:
+      aggregations:
         technique_count:
           value_count:
             field: _id
@@ -86,8 +86,3 @@ steps:
         Enabled only: {{ inputs.enabled_only }}
         {% if inputs.tactic_filter %}Tactic filter: {{ inputs.tactic_filter }}{% endif %}
 
-outputs:
-  total_rules:
-    value: "{{ steps.fetch_all_rules.output.data.total }}"
-  rules:
-    value: "{{ steps.fetch_all_rules.output.data.data }}"

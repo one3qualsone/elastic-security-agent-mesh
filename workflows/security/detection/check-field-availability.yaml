@@ -59,6 +59,3 @@ steps:
         Fields requested: {{ inputs.field_names }}
         Results: {{ steps.check_fields.output.data.fields }}
 
-outputs:
-  fields:
-    value: "{{ steps.check_fields.output.data.fields }}"

@@ -21,13 +21,13 @@ triggers:
 
 inputs:
   - name: page
-    type: integer
+    type: number
     description: "Page number (1-based)"
-    default: 1
+    default: "1"
   - name: per_page
-    type: integer
+    type: number
     description: "Results per page"
-    default: 20
+    default: "20"
   - name: sort_field
     type: string
     description: "Field to sort by (e.g., name, enabled, severity)"
@@ -55,10 +55,3 @@ steps:
       message: |
         Found {{ steps.list_rules.output.data.total }} rules (showing page {{ inputs.page }}, {{ inputs.per_page }} per page)
 
-outputs:
-  total:
-    value: "{{ steps.list_rules.output.data.total }}"
-  rules:
-    value: "{{ steps.list_rules.output.data.data }}"
-  page:
-    value: "{{ steps.list_rules.output.data.page }}"

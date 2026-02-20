@@ -80,9 +80,3 @@ steps:
     type: console
     with:
       message: "Investigation created: {{ inputs.title }} (doc ID: {{ steps.create_context.output._id }})"
-
-outputs:
-  document_id:
-    value: "{{ steps.create_context.output._id }}"
-  investigation_id:
-    value: "inv-{{ steps.generate_id.output }}"

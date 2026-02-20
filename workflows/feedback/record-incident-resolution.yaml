@@ -109,7 +109,3 @@ steps:
     type: console
     with:
       message: "Incident resolution recorded in {{ consts.kb_index }}. Investigation {{ inputs.investigation_doc_id }} marked as closed."
-
-outputs:
-  knowledge_doc_id:
-    value: "{{ steps.write_incident_knowledge.output._id }}"

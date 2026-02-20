@@ -29,7 +29,7 @@ inputs:
     description: Target Elasticsearch index name
     required: true
   - name: document
-    type: object
+    type: string
     description: The document body to index (any valid JSON object)
     required: true
 
@@ -46,8 +46,3 @@ steps:
     with:
       message: "Document indexed in {{ inputs.index_name }} with ID: {{ steps.index_document.output._id }}"
 
-outputs:
-  document_id:
-    value: "{{ steps.index_document.output._id }}"
-  index:
-    value: "{{ inputs.index_name }}"

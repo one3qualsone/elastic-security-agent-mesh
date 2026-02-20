@@ -85,7 +85,3 @@ steps:
     type: console
     with:
       message: "Decision logged: {{ inputs.action_type }} on {{ inputs.target }} — {{ inputs.result }} (approved by {{ inputs.approved_by }})"
-
-outputs:
-  status:
-    value: "{{ steps.log_action.output.data.result }}"

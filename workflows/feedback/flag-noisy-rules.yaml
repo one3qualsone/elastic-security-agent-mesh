@@ -24,13 +24,13 @@ triggers:
 
 inputs:
   - name: lookback_days
-    type: integer
+    type: number
     description: "Number of days to analyse"
-    default: 7
+    default: "7"
   - name: alert_threshold
-    type: integer
+    type: number
     description: "Flag rules generating more than this many alerts per day"
-    default: 50
+    default: "50"
 
 consts:
   alerts_index: ".alerts-security.alerts-default"
@@ -47,7 +47,7 @@ steps:
         range:
           "@timestamp":
             gte: "now-{{ inputs.lookback_days }}d"
-      aggs:
+      aggregations:
         by_rule:
           terms:
             field: "kibana.alert.rule.name"
@@ -68,7 +68,7 @@ steps:
                   gte: "now-{{ inputs.lookback_days }}d"
             - term:
                 kibana.alert.workflow_tags: "false-positive"
-      aggs:
+      aggregations:
         by_rule:
           terms:
             field: "kibana.alert.rule.name"
@@ -109,7 +109,3 @@ steps:
     type: console
     with:
       message: "Noisy rules report written to {{ consts.kb_index }}"
-
-outputs:
-  report_doc_id:
-    value: "{{ steps.write_noisy_rules_report.output._id }}"

@@ -74,6 +74,3 @@ steps:
         with:
           message: "Document {{ inputs.document_id }} not found in {{ inputs.index_name }}"
 
-outputs:
-  result:
-    value: "{{ steps.delete_document.output.data.result | default: 'not_found' }}"

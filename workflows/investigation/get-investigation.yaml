@@ -51,9 +51,3 @@ steps:
         Evidence Count: {{ steps.get_context.output.data._source.evidence | size }}
         Actions Taken: {{ steps.get_context.output.data._source.actions_taken | size }}
         Pending Actions: {{ steps.get_context.output.data._source.pending_actions | size }}
-
-outputs:
-  investigation:
-    value: "{{ steps.get_context.output.data._source }}"
-  document_id:
-    value: "{{ steps.get_context.output.data._id }}"

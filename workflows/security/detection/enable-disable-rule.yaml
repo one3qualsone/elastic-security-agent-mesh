@@ -47,6 +47,3 @@ steps:
         Rule {{ inputs.rule_id }}: {% if inputs.enabled %}ENABLED{% else %}DISABLED{% endif %}
         Name: {{ steps.toggle_rule.output.data.name }}
 
-outputs:
-  rule:
-    value: "{{ steps.toggle_rule.output.data }}"

@@ -51,9 +51,9 @@ inputs:
     description: "Rule severity: low, medium, high, critical"
     default: "medium"
   - name: risk_score
-    type: integer
+    type: number
     description: "Risk score (0-100)"
-    default: 50
+    default: "50"
   - name: tags
     type: array
     description: "Rule tags for categorisation"
@@ -104,10 +104,3 @@ steps:
         Severity: {{ steps.create_rule.output.data.severity }}
         Note: Rule is disabled by default. Use enable-disable-rule workflow to activate after review.
 
-outputs:
-  rule_id:
-    value: "{{ steps.create_rule.output.data.rule_id }}"
-  id:
-    value: "{{ steps.create_rule.output.data.id }}"
-  rule:
-    value: "{{ steps.create_rule.output.data }}"

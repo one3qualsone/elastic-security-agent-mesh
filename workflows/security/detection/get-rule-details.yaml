@@ -43,6 +43,3 @@ steps:
         Severity: {{ steps.get_rule.output.data.severity }}
         Risk Score: {{ steps.get_rule.output.data.risk_score }}
 
-outputs:
-  rule:
-    value: "{{ steps.get_rule.output.data }}"

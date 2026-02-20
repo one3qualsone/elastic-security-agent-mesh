@@ -39,7 +39,7 @@ inputs:
   - name: confidence
     type: number
     description: "Confidence score between 0.0 and 1.0"
-    default: 0.5
+    default: "0.5"
   - name: references
     type: array
     description: "Reference IDs (alert IDs, document IDs, IOCs, etc.)"
@@ -80,7 +80,3 @@ steps:
     type: console
     with:
       message: "Evidence added to investigation {{ inputs.document_id }} by agent {{ inputs.agent_id }}"
-
-outputs:
-  status:
-    value: "{{ steps.append_evidence.output.data.result }}"

@@ -80,7 +80,3 @@ steps:
     type: console
     with:
       message: "Action proposed: {{ inputs.action_type }} ({{ inputs.risk_tier }}) by {{ inputs.recommending_agent }}"
-
-outputs:
-  status:
-    value: "{{ steps.add_proposal.output.data.result }}"

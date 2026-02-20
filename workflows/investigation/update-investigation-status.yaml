@@ -83,7 +83,3 @@ steps:
     type: console
     with:
       message: "Investigation {{ inputs.document_id }} updated."
-
-outputs:
-  status:
-    value: "{{ steps.update_context.output.data.result }}"

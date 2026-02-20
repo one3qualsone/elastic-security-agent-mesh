@@ -32,11 +32,11 @@ inputs:
   - name: confidence
     type: number
     description: "Confidence score of the agent's assessment (0.0 to 1.0)"
-    default: 0.5
+    default: "0.5"
   - name: blast_radius
-    type: integer
+    type: number
     description: "Number of entities affected by this action"
-    default: 1
+    default: "1"
 
 consts:
   index_name: "action-policies"
@@ -94,11 +94,3 @@ steps:
         type: console
         with:
           message: "DECISION: denied — no policy found for action type {{ inputs.action_type }}. Action not permitted."
-
-outputs:
-  risk_tier:
-    value: "{{ steps.lookup_policy.output.hits.hits[0]._source.risk_tier }}"
-  requires_approval:
-    value: "{{ steps.lookup_policy.output.hits.hits[0]._source.requires_approval }}"
-  policy:
-    value: "{{ steps.lookup_policy.output.hits.hits[0]._source }}"

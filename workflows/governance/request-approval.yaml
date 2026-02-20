@@ -90,8 +90,3 @@ steps:
     with:
       message: "Approval case created for {{ inputs.action_type }} targeting {{ inputs.target }} — case ID: {{ steps.create_approval_case.output.id }}"
 
-outputs:
-  case_id:
-    value: "{{ steps.create_approval_case.output.id }}"
-  request_sent:
-    value: "true"

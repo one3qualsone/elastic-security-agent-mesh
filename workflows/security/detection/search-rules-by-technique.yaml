@@ -26,9 +26,9 @@ inputs:
     description: "MITRE ATT&CK technique ID (e.g., T1059, T1059.001)"
     required: true
   - name: per_page
-    type: integer
+    type: number
     description: "Maximum results to return"
-    default: 50
+    default: "50"
 
 steps:
 
@@ -44,8 +44,3 @@ steps:
       message: |
         Found {{ steps.search_rules.output.data.total }} rules potentially matching technique {{ inputs.technique_id }}
 
-outputs:
-  total:
-    value: "{{ steps.search_rules.output.data.total }}"
-  rules:
-    value: "{{ steps.search_rules.output.data.data }}"

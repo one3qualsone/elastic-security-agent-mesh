@@ -87,8 +87,3 @@ steps:
         with:
           message: "No specialist agent matched this request. Please try rephrasing or specify which agent you need."
 
-outputs:
-  response:
-    value: "{{ steps.invoke_specialist.output.response.message }}"
-  routed_to:
-    value: "{{ steps.find_agent.output.hits.hits[0]._source.agent_name }}"

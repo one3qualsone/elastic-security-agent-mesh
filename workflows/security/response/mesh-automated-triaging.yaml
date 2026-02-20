@@ -26,7 +26,6 @@ tags:
 
 triggers:
   - type: alert
-    enabled: true
 
 consts:
   es_url: "__ES_URL__"

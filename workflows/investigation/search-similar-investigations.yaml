@@ -29,9 +29,9 @@ inputs:
     description: "Filter by investigation status (e.g., resolved, closed). Leave empty for all."
     required: false
   - name: max_results
-    type: integer
+    type: number
     description: "Maximum number of results to return"
-    default: 5
+    default: "5"
 
 consts:
   index_name: "investigation-contexts"
@@ -88,7 +88,3 @@ steps:
         {% else %}
         Found {{ steps.unfiltered_search.output.hits.total.value }} similar investigations
         {% endif %}
-
-outputs:
-  results:
-    value: "{% if inputs.status_filter %}{{ steps.filtered_search.output.hits.hits }}{% else %}{{ steps.unfiltered_search.output.hits.hits }}{% endif %}"
