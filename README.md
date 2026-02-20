@@ -163,11 +163,11 @@ python scripts/setup.py --delete-all      # Delete everything and re-deploy from
 
 ### Post-Setup
 
-The setup script automatically creates all workflow tools, agents, and mesh registrations. Two manual steps remain:
+The setup script automatically creates all workflow tools, agents, and mesh registrations. Three manual steps remain — complete them in order, then re-run `agents-only` to sync everything.
 
 #### Step 1: Create the Agent Registry Tool
 
-The Agent Builder API does not support creating `index_search` tools programmatically — this must be done in the UI:
+The Agent Builder API does not support creating `index_search` tools programmatically — this one tool must be created in the UI:
 
 1. Navigate to **Agent Builder > Tools > Create a new tool**
 2. Set **Type** to `Index Search`
@@ -176,7 +176,8 @@ The Agent Builder API does not support creating `index_search` tools programmati
 5. Set **Description** to `Search the agent registry to discover specialist agents by capability, domain, or natural language description`
 6. Add label `security-mesh`
 7. Save the tool
-8. Assign this tool to the following agents: **Orchestrator**, **Detection Engineering**, **Security Analyst**, **Forensics**, **Compliance**, **SOC Operations** (all agents except Threat Intelligence)
+
+You do **not** need to manually assign this tool to agents — the setup script handles that automatically (see Step 3).
 
 #### Step 2: Assign LLM Connector
 
@@ -186,7 +187,18 @@ The API cannot assign an LLM connector to agents (this is a Kibana UI setting). 
 2. Open each agent (they'll be named `Security Mesh Orchestrator`, `Detection Engineering Agent`, etc.)
 3. In the agent settings, select your LLM connector (Claude Sonnet, GPT-4o, Gemini, etc.)
 
-All tools and system instructions are already configured — you just need to pick the model.
+#### Step 3: Sync Agent Tool Assignments
+
+After creating the agent-registry tool (Step 1) and assigning connectors (Step 2), re-run the setup with `agents-only` to automatically attach the new tool to all 6 agents that need it:
+
+```bash
+# Via GitHub Actions: select "agents-only" from the workflow dispatch menu
+
+# Or locally:
+python scripts/setup.py --agents-only
+```
+
+The script checks for each tool by ID — if `security-mesh.agent-registry` now exists, it will be attached to the Orchestrator, Detection Engineering, Security Analyst, Forensics, Compliance, and SOC Operations agents automatically. Threat Intelligence does not use the agent registry.
 
 #### Agents and Tools Reference
 
