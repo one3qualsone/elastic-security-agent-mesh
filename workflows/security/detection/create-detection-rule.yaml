@@ -87,7 +87,7 @@ steps:
         index: "{{ inputs.index_patterns }}"
         severity: "{{ inputs.severity }}"
         risk_score: "{{ inputs.risk_score }}"
-        tags: {{ inputs.tags | default: '["auto-generated"]' }}
+        tags: "{{ inputs.tags | default: '[\"auto-generated\"]' }}"
         threat: "{{ inputs.threat | default: '[]' }}"
         interval: "{{ inputs.interval }}"
         from: "{{ inputs.from }}"

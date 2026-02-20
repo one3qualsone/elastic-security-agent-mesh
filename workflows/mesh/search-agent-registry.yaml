@@ -40,24 +40,6 @@ consts:
 
 steps:
 
-  - name: build_query_filters
-    type: console
-    with:
-      message: |
-        {% assign filters = "" | split: "" %}
-        {% assign filter_obj = '{"term": {"status": "active"}}' %}
-        {% assign filters = filters | push: filter_obj %}
-        {% if inputs.domain_filter %}
-          {% assign domain_filter = '{"term": {"domain": "' | append: inputs.domain_filter | append: '"}}' %}
-          {% assign filters = filters | push: domain_filter %}
-        {% endif %}
-        [{{ filters | join: "," }}]
-
-  - name: parse_filters
-    type: console
-    with:
-      message: {{ steps.build_query_filters.output | json_parse }}
-
   - name: search_registry
     type: elasticsearch.search
     with:
@@ -65,23 +47,24 @@ steps:
       size: 3
       query:
         bool:
+          must:
+            - term:
+                status: "active"
           should:
             - semantic:
                 field: semantic_description
                 query: "{{ inputs.query }}"
-          must: "{{ steps.parse_filters.output }}"
           minimum_should_match: 1
 
   - name: output_result
     type: console
     with:
       message: |
-        {% assign hits = steps.search_registry.output.hits.hits %}
-        {% if hits.size > 0 %}
-        Best match: {{ hits[0]._source.agent_name }} ({{ hits[0]._source.domain }})
-        Agent ID: {{ hits[0]._source.agent_id }}
-        Capabilities: {{ hits[0]._source.capabilities | join: ", " }}
-        Description: {{ hits[0]._source.description }}
+        {% if steps.search_registry.output.hits.total.value > 0 %}
+        Best match: {{ steps.search_registry.output.hits.hits[0]._source.agent_name }} ({{ steps.search_registry.output.hits.hits[0]._source.domain }})
+        Agent ID: {{ steps.search_registry.output.hits.hits[0]._source.agent_id }}
+        Capabilities: {{ steps.search_registry.output.hits.hits[0]._source.capabilities | join: ", " }}
+        Description: {{ steps.search_registry.output.hits.hits[0]._source.description }}
         {% else %}
         No matching agent found for this request.
         {% endif %}
