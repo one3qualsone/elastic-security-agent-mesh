@@ -779,11 +779,10 @@ def create_tools(workflow_name_to_id):
                 tool_name_to_id[tool_name] = tool_id
                 skipped += 1
             else:
-                print(f"    [MANUAL]  {tool_name} — index_search tools may require UI creation")
+                print(f"    [MANUAL]  {tool_name} — index_search tools require UI creation")
                 print(f"              API response: {resp.status_code} — {resp.text[:300]}")
                 print(f"              Create manually: Agent Builder > Tools > New tool")
                 print(f"              Type: Index Search | Index: {index_name} | ID: {tool_id}")
-                tool_name_to_id[tool_name] = tool_id
                 failed += 1
             time.sleep(0.2)
             continue
@@ -933,18 +932,33 @@ def create_agents(tool_name_to_id):
         agent_id = slugify(agent_name)
 
         tool_ids = []
-        missing_tools = []
+        skipped_tools = []
+        fallback_tools = []
         for tool in agent_def.get("tools", []):
             tid = tool_name_to_id.get(tool["name"])
-            if not tid:
-                tid = slugify(tool["name"])
-                missing_tools.append(tool["name"])
-            tool_ids.append(tid)
+            if tid:
+                tool_ids.append(tid)
+            else:
+                computed_id = slugify(tool["name"])
+                check = requests.get(
+                    f"{base_url}/api/agent_builder/tools/{computed_id}",
+                    headers=headers,
+                    timeout=10,
+                )
+                if check.ok:
+                    tool_ids.append(computed_id)
+                    fallback_tools.append(tool["name"])
+                else:
+                    skipped_tools.append(tool["name"])
 
-        if missing_tools:
-            print(f"    [info] {agent_name}: {len(missing_tools)} tool(s) resolved via fallback ID:")
-            for mt in missing_tools:
-                print(f"           - {mt} → {slugify(mt)}")
+        if fallback_tools:
+            print(f"    [info] {agent_name}: {len(fallback_tools)} tool(s) resolved via fallback:")
+            for ft in fallback_tools:
+                print(f"           - {ft} → {slugify(ft)}")
+        if skipped_tools:
+            print(f"    [warn] {agent_name}: {len(skipped_tools)} tool(s) not found, skipped:")
+            for st in skipped_tools:
+                print(f"           - {st} (create manually in Agent Builder)")
 
         payload = {
             "id": agent_id,
