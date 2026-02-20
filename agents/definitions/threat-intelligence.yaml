@@ -75,8 +75,13 @@ tools:
     workflow: workflows/security/enrichment/ip-reputation-check.yaml
     description: Check IP reputation via AbuseIPDB with geolocation
   - name: Web Search
-    workflow: workflows/search/web-search.yaml
-    description: Search the web for current threat information
+    type: builtin
+    tool_id: websearch.web_search
+    description: Search the web for emerging threats, threat actor research, and campaign information
+  - name: Fetch Webpage
+    type: builtin
+    tool_id: websearch.fetch_webpage
+    description: Fetch and read a specific webpage for detailed threat intelligence content
   - name: Semantic Knowledge Search
     workflow: workflows/search/semantic-knowledge-search.yaml
     description: Search knowledge bases semantically

@@ -120,8 +120,13 @@ tools:
     workflow: workflows/search/semantic-knowledge-search.yaml
     description: Search knowledge bases using semantic search
   - name: Web Search
-    workflow: workflows/search/web-search.yaml
-    description: Search the web for current information
+    type: builtin
+    tool_id: websearch.web_search
+    description: Search the web for detection techniques, threat research, and SIEM migration references
+  - name: Fetch Webpage
+    type: builtin
+    tool_id: websearch.fetch_webpage
+    description: Fetch and read a specific webpage for detailed technical content
   - name: Add Knowledge Document
     workflow: workflows/knowledge/add-knowledge-document.yaml
     description: Index a new document into a knowledge base

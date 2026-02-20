@@ -190,16 +190,16 @@ All tools and system instructions are already configured — you just need to pi
 
 #### Agents and Tools Reference
 
-The setup script creates the following agents and tools from `agents/definitions/`. Agent Builder supports four tool types: **Workflows**, **Index Search**, **ES|QL**, and **MCP**. This mesh uses Workflows and Index Search.
+The setup script creates the following agents and tools from `agents/definitions/`. Agent Builder supports four tool types: **Workflows**, **Index Search**, **ES|QL**, and **MCP**. This mesh uses Workflows, built-in platform tools, and MCP tools.
 
-| # | Agent Name | Workflow Tools | Built-in Tools | Knowledge Bases |
-|---|-----------|---------------|----------------|-----------------|
+| # | Agent Name | Workflow Tools | Built-in / MCP Tools | Knowledge Bases |
+|---|-----------|---------------|----------------------|-----------------|
 | 1 | **Security Mesh Orchestrator** | Call Subagent | `platform.core.search`, `platform.core.cases` | *None* |
-| 2 | **Detection Engineering Agent** | List Detection Rules, Get Rule Details, Create Detection Rule, Enable/Disable Rule, Search Rules by MITRE Technique, Evaluate MITRE Coverage, Check Field Availability, Check Action Policy, Create Investigation, Add Evidence, Get Investigation, Update Investigation Status, Log Decision, Semantic Knowledge Search, Web Search, Add Knowledge Document, Call Subagent | `platform.core.execute_esql`, `platform.core.generate_esql`, `security.alerts` | kb-detection-rules, kb-ecs-schema, kb-mitre-attack |
-| 3 | **Threat Intelligence Agent** | VT File Hash Report, VT File Upload, VT URL Scan, VT URL Report, VT Domain Report, VT IP Report, IP Reputation Check, Web Search, Semantic Knowledge Search, Add Knowledge Document | *None* | kb-threat-intel, kb-ioc-history |
+| 2 | **Detection Engineering Agent** | List Detection Rules, Get Rule Details, Create Detection Rule, Enable/Disable Rule, Search Rules by MITRE Technique, Evaluate MITRE Coverage, Check Field Availability, Check Action Policy, Create Investigation, Add Evidence, Get Investigation, Update Investigation Status, Log Decision, Semantic Knowledge Search, Add Knowledge Document, Call Subagent | `platform.core.execute_esql`, `platform.core.generate_esql`, `security.alerts`, `websearch.web_search`, `websearch.fetch_webpage` | kb-detection-rules, kb-ecs-schema, kb-mitre-attack |
+| 3 | **Threat Intelligence Agent** | VT File Hash Report, VT File Upload, VT URL Scan, VT URL Report, VT Domain Report, VT IP Report, IP Reputation Check, Semantic Knowledge Search, Add Knowledge Document | `websearch.web_search`, `websearch.fetch_webpage` | kb-threat-intel, kb-ioc-history |
 | 4 | **Security Analyst Agent** | Semantic Knowledge Search, Tag Alert as True Positive, Tag Alert as False Positive, Close Alert, Acknowledge Alert, Create Case, Create Alert Note, Create Investigation, Get Investigation, Update Investigation Status, Add Evidence, Propose Action, Search Similar Investigations, Record Incident Resolution, Check Action Policy, Log Decision, Request Approval, Add Knowledge Document, VT File Hash Report, VT IP Report, VT Domain Report, IP Reputation Check, Call Subagent | `security.alerts` | kb-incidents, kb-playbooks |
 | 5 | **Forensics Agent** | Execute Command on Endpoint, Execute and Retrieve, Get Action Status, Create Investigation, Get Investigation, Update Investigation Status, Add Evidence, Propose Action, Check Action Policy, Log Decision, Request Approval, Semantic Knowledge Search, Add Knowledge Document, VT File Hash Report, VT IP Report, Call Subagent | `platform.core.execute_esql`, `security.alerts` | kb-forensics |
-| 6 | **Compliance Agent** | Semantic Knowledge Search, Web Search, Add Knowledge Document, Call Subagent | `platform.core.search` | kb-compliance |
+| 6 | **Compliance Agent** | Semantic Knowledge Search, Add Knowledge Document, Call Subagent | `platform.core.search`, `websearch.web_search`, `websearch.fetch_webpage` | kb-compliance |
 | 7 | **SOC Operations Agent** | Semantic Knowledge Search, Add Knowledge Document, Update Knowledge Document, Remove Knowledge Document, Check Knowledge Staleness, Call Subagent | `platform.core.cases`, `security.alerts` | kb-soc-ops, kb-runbooks |
 
 For each agent, copy the `system_instructions` from the corresponding file in `agents/definitions/`. These contain the agent's persona, principles, and behavioural guidance.
@@ -306,9 +306,34 @@ Populate the knowledge base indices with domain-specific data. Use the **Add Kno
 
 Each document should include a `semantic_summary` field (used for semantic search) and a `category` field for filtering.
 
-### Web Search Integration (Optional)
+### Web Search Integration (MCP — Required)
 
-Web search is not included in the core setup. The architecture supports plugging in your own web search capability — either as an MCP tool registered directly in Agent Builder, or as a workflow that calls your search API via HTTP. The existing `workflows/search/web-search.yaml` provides a template pattern using Brave Search that can be adapted to any provider.
+Web search is provided via an **MCP (Model Context Protocol) server** that you bring yourself. The mesh agents (Detection Engineering, Threat Intelligence, Compliance) reference two MCP tools that must be set up before they can search the web.
+
+#### Setup
+
+1. **Deploy an MCP-compatible web search server** — for example, a Vertex AI Cloud Run service with Google Search grounding, or any MCP server that provides web search capabilities.
+
+2. **Create an MCP connector in Kibana**:
+   - Navigate to **Stack Management > Connectors > Create connector**
+   - Select **MCP** as the connector type
+   - Configure the server URL and authentication (e.g., API key header)
+   - Name it `websearch` (or your preferred name)
+
+3. **Create the MCP tools in Agent Builder**:
+   - Navigate to **Agent Builder > Tools > Create a new tool**
+   - Create two tools:
+
+   | Tool ID | Type | Description |
+   |---------|------|-------------|
+   | `websearch.web_search` | MCP | Search the web using your MCP server. Returns a grounded research summary with source URLs. Use for finding threat research, regulatory updates, technical documentation, or any public information. |
+   | `websearch.fetch_webpage` | MCP | Fetch a web page and extract its readable text content. Use after `web_search` to read specific pages in full — articles, reports, documentation. Returns clean text with headings preserved. |
+
+4. **Assign to agents** — the setup script automatically references these tool IDs when creating agents. If the tools don't exist yet, they'll be skipped with a warning and can be assigned later.
+
+#### Example: Vertex AI Cloud Run
+
+Our reference implementation uses a Vertex AI Cloud Run service with Gemini + Google Search grounding. The MCP server exposes `web_search` and `fetch_webpage` tools, and authentication is handled via an API key header. This provides the same search quality as Google Search with AI-synthesised summaries and source citations.
 
 ---
 

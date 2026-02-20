@@ -61,8 +61,13 @@ tools:
     workflow: workflows/search/semantic-knowledge-search.yaml
     description: Search compliance knowledge base semantically
   - name: Web Search
-    workflow: workflows/search/web-search.yaml
-    description: Search for current regulatory updates and guidance
+    type: builtin
+    tool_id: websearch.web_search
+    description: Search the web for current regulatory updates, enforcement actions, and guidance
+  - name: Fetch Webpage
+    type: builtin
+    tool_id: websearch.fetch_webpage
+    description: Fetch and read a specific webpage for detailed regulatory content
   - name: Add Knowledge Document
     workflow: workflows/knowledge/add-knowledge-document.yaml
     description: Add new regulatory content to the knowledge base
