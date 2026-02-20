@@ -28,7 +28,7 @@ inputs:
   - name: per_page
     type: number
     description: "Maximum results to return"
-    default: "50"
+    default: 50
 
 steps:
 

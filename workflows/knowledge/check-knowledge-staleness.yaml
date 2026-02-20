@@ -36,7 +36,7 @@ inputs:
   - name: max_results
     type: number
     description: Maximum number of stale documents to return
-    default: "50"
+    default: 50
 
 steps:
 

@@ -23,11 +23,11 @@ inputs:
   - name: page
     type: number
     description: "Page number (1-based)"
-    default: "1"
+    default: 1
   - name: per_page
     type: number
     description: "Results per page"
-    default: "20"
+    default: 20
   - name: sort_field
     type: string
     description: "Field to sort by (e.g., name, enabled, severity)"

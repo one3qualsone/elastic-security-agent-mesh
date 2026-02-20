@@ -39,7 +39,7 @@ inputs:
   - name: confidence
     type: number
     description: "Confidence score between 0.0 and 1.0"
-    default: "0.5"
+    default: 0.5
   - name: references
     type: array
     description: "Reference IDs (alert IDs, document IDs, IOCs, etc.)"

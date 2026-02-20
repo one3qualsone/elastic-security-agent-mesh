@@ -32,11 +32,11 @@ inputs:
   - name: confidence
     type: number
     description: "Confidence score of the agent's assessment (0.0 to 1.0)"
-    default: "0.5"
+    default: 0.5
   - name: blast_radius
     type: number
     description: "Number of entities affected by this action"
-    default: "1"
+    default: 1
 
 consts:
   index_name: "action-policies"

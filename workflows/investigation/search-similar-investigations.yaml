@@ -31,7 +31,7 @@ inputs:
   - name: max_results
     type: number
     description: "Maximum number of results to return"
-    default: "5"
+    default: 5
 
 consts:
   index_name: "investigation-contexts"

@@ -53,7 +53,7 @@ inputs:
   - name: risk_score
     type: number
     description: "Risk score (0-100)"
-    default: "50"
+    default: 50
   - name: tags
     type: array
     description: "Rule tags for categorisation"
