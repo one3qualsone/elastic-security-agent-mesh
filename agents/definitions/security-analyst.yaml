@@ -65,18 +65,6 @@ tools:
   - name: Add Knowledge Document
     workflow: workflows/knowledge/add-knowledge-document.yaml
     description: Record incident resolution for future reference
-  - name: VT File Hash Report
-    workflow: workflows/security/enrichment/vt-file-hash-report.yaml
-    description: Get a VirusTotal file report by hash
-  - name: VT IP Report
-    workflow: workflows/security/enrichment/vt-ip-report.yaml
-    description: Get a VirusTotal threat report for an IP address
-  - name: VT Domain Report
-    workflow: workflows/security/enrichment/vt-domain-report.yaml
-    description: Get a VirusTotal threat report for a domain
-  - name: IP Reputation Check
-    workflow: workflows/security/enrichment/ip-reputation-check.yaml
-    description: Check IP reputation via AbuseIPDB with geolocation
   - name: Create Alert Note
     workflow: workflows/security/detection/create-alert-note.yaml
     description: Add investigation notes to an alert
