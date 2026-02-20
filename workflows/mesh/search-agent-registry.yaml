@@ -56,7 +56,7 @@ steps:
   - name: parse_filters
     type: console
     with:
-      message: ${{ steps.build_query_filters.output | json_parse }}
+      message: {{ steps.build_query_filters.output | json_parse }}
 
   - name: search_registry
     type: elasticsearch.search
@@ -69,7 +69,7 @@ steps:
             - semantic:
                 field: semantic_description
                 query: "{{ inputs.query }}"
-          must: ${{ steps.parse_filters.output }}
+          must: "{{ steps.parse_filters.output }}"
           minimum_should_match: 1
 
   - name: output_result

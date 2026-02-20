@@ -6,7 +6,8 @@
 # multi-agent investigations. Each investigation has an evidence chain,
 # action log, and pending action queue for governance.
 #
-# Run once during initial mesh setup.
+# Run once during initial mesh setup. The Python setup script handles this
+# automatically; this workflow is available as a manual alternative.
 #
 # PREREQUISITES:
 #   - An inference endpoint must be configured (same as knowledge bases).
@@ -32,15 +33,19 @@ inputs:
     default: ".multilingual-e5-small-elasticsearch"
 
 consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
   index_name: "investigation-contexts"
 
 steps:
 
   - name: check_index_exists
-    type: elasticsearch.request
+    type: http
     with:
       method: HEAD
-      path: "/{{ consts.index_name }}"
+      url: "{{ consts.es_url }}/{{ consts.index_name }}"
+      headers:
+        Authorization: "ApiKey {{ consts.es_api_key }}"
     on-failure:
       continue: true
 
@@ -57,10 +62,13 @@ steps:
     else:
 
       - name: create_index
-        type: elasticsearch.request
+        type: http
         with:
           method: PUT
-          path: "/{{ consts.index_name }}"
+          url: "{{ consts.es_url }}/{{ consts.index_name }}"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
           body:
             settings:
               number_of_shards: 1

@@ -42,55 +42,63 @@ inputs:
     required: false
 
 consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
   investigation_index: "investigation-contexts"
   kb_index: "kb-incidents"
 
 steps:
 
   - name: get_investigation
-    type: elasticsearch.request
+    type: http
     with:
       method: GET
-      path: "/{{ consts.investigation_index }}/_doc/{{ inputs.investigation_doc_id }}"
+      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_doc/{{ inputs.investigation_doc_id }}"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
 
   - name: write_incident_knowledge
     type: elasticsearch.index
     with:
       index: "{{ consts.kb_index }}"
       document:
-        title: "{{ steps.get_investigation.output._source.title }}"
+        title: "{{ steps.get_investigation.output.data._source.title }}"
         content: |
           ## Resolution Summary
           {{ inputs.resolution_summary }}
 
           ## Investigation Details
-          - Trigger: {{ steps.get_investigation.output._source.trigger_type }}
-          - Risk Tier: {{ steps.get_investigation.output._source.risk_tier }}
+          - Trigger: {{ steps.get_investigation.output.data._source.trigger_type }}
+          - Risk Tier: {{ steps.get_investigation.output.data._source.risk_tier }}
           - Status: resolved
 
           {% if inputs.lessons_learned %}
           ## Lessons Learned
           {{ inputs.lessons_learned }}
           {% endif %}
-        semantic_summary: "{{ steps.get_investigation.output._source.title }}. {{ inputs.resolution_summary }}"
+        semantic_summary: "{{ steps.get_investigation.output.data._source.title }}. {{ inputs.resolution_summary }}"
         category: "incident-resolution"
         source: "record-incident-resolution"
-        tags: ${{ inputs.tags | default: '["incident"]' }}
+        tags: "{{ inputs.tags | default: '["incident"]' }}"
         created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
         updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
         metadata:
           investigation_doc_id: "{{ inputs.investigation_doc_id }}"
-          investigation_id: "{{ steps.get_investigation.output._source.investigation_id }}"
-          trigger_type: "{{ steps.get_investigation.output._source.trigger_type }}"
-          trigger_ref: "{{ steps.get_investigation.output._source.trigger_ref }}"
-          evidence_count: "{{ steps.get_investigation.output._source.evidence | size }}"
-          actions_count: "{{ steps.get_investigation.output._source.actions_taken | size }}"
+          investigation_id: "{{ steps.get_investigation.output.data._source.investigation_id }}"
+          trigger_type: "{{ steps.get_investigation.output.data._source.trigger_type }}"
+          trigger_ref: "{{ steps.get_investigation.output.data._source.trigger_ref }}"
+          evidence_count: "{{ steps.get_investigation.output.data._source.evidence | size }}"
+          actions_count: "{{ steps.get_investigation.output.data._source.actions_taken | size }}"
 
   - name: update_investigation_resolved
-    type: elasticsearch.request
+    type: http
     with:
       method: POST
-      path: "/{{ consts.investigation_index }}/_update/{{ inputs.investigation_doc_id }}"
+      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ inputs.investigation_doc_id }}"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
       body:
         doc:
           status: "closed"

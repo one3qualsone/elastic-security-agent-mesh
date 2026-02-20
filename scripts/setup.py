@@ -59,8 +59,8 @@ WORKFLOW_DIRS = [
     "workflows/mesh",
     "workflows/investigation",
     "workflows/governance",
+    "workflows/feedback",
     "workflows/utilities",
-    "workflows/integrations/slack",
 ]
 
 
@@ -411,7 +411,8 @@ def seed_action_policies():
     url = f"{os.environ['ELASTIC_CLOUD_URL']}/action-policies/_bulk"
     bulk_body = ""
     for policy in policies:
-        bulk_body += json.dumps({"index": {}}) + "\n"
+        doc_id = policy["action_type"]
+        bulk_body += json.dumps({"index": {"_id": doc_id}}) + "\n"
         bulk_body += json.dumps(policy) + "\n"
 
     resp = requests.post(
@@ -443,6 +444,13 @@ def import_workflows():
     failed = 0
     skipped = 0
 
+    replacements = {
+        "__ES_URL__": os.environ.get("ELASTIC_CLOUD_URL", ""),
+        "__ES_API_KEY__": os.environ.get("ES_API_KEY", ""),
+        "__KIBANA_URL__": os.environ.get("KIBANA_URL", ""),
+        "__KIBANA_API_KEY__": os.environ.get("KIBANA_API_KEY", ""),
+    }
+
     for workflow_dir in WORKFLOW_DIRS:
         dir_path = REPO_ROOT / workflow_dir
         if not dir_path.exists():
@@ -456,6 +464,10 @@ def import_workflows():
         for yaml_file in yaml_files:
             with open(yaml_file) as f:
                 yaml_content = f.read()
+
+            for placeholder, value in replacements.items():
+                if value:
+                    yaml_content = yaml_content.replace(placeholder, value)
 
             resp = requests.post(
                 f"{base_url}/api/workflows",

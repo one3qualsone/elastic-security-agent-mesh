@@ -1,5 +1,5 @@
 # =============================================================================
-# Workflow: Mesh-Aware Automated Triaging
+# Workflow: Mesh Automated Triaging
 # Category: security/response
 #
 # Alert-triggered triage that bridges security alerts into the agent mesh.
@@ -29,6 +29,8 @@ triggers:
     enabled: true
 
 consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
   investigation_index: "investigation-contexts"
   registry_index: "agent-registry"
   alerts_index: ".alerts-security.alerts-default"
@@ -40,7 +42,6 @@ steps:
     foreach: event.alerts
     steps:
 
-      # Create an investigation context to track this triage
       - name: create_investigation
         type: elasticsearch.index
         with:
@@ -69,7 +70,6 @@ steps:
         with:
           message: "Investigation created for alert {{ foreach.item._id }}: {{ foreach.item.kibana.alert.rule.name }}"
 
-      # Get alert details for context
       - name: get_alert_details
         type: elasticsearch.search
         with:
@@ -79,7 +79,6 @@ steps:
             match:
               _id: "{{ foreach.item._id }}"
 
-      # Find the Security Analyst agent in the registry
       - name: find_analyst_agent
         type: elasticsearch.search
         with:
@@ -93,17 +92,19 @@ steps:
                 - term:
                     domain: "triage"
 
-      # Route to analyst agent if found
       - name: check_analyst_found
         type: if
         condition: steps.find_analyst_agent.output.hits.total.value > 0
         steps:
 
           - name: update_assignment
-            type: elasticsearch.request
+            type: http
             with:
               method: POST
-              path: "/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              headers:
+                Content-Type: application/json
+                Authorization: "ApiKey {{ consts.es_api_key }}"
               body:
                 doc:
                   assigned_agent: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
@@ -138,12 +139,14 @@ steps:
             with:
               message: "Analyst agent response: {{ steps.invoke_analyst.output.response.message }}"
 
-          # Add the analyst's response as evidence
           - name: record_analyst_evidence
-            type: elasticsearch.request
+            type: http
             with:
               method: POST
-              path: "/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              headers:
+                Content-Type: application/json
+                Authorization: "ApiKey {{ consts.es_api_key }}"
               body:
                 script:
                   source: |
@@ -169,10 +172,13 @@ steps:
               message: "No analyst agent found in registry. Alert {{ foreach.item._id }} requires manual triage."
 
           - name: update_status_manual
-            type: elasticsearch.request
+            type: http
             with:
               method: POST
-              path: "/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              headers:
+                Content-Type: application/json
+                Authorization: "ApiKey {{ consts.es_api_key }}"
               body:
                 doc:
                   status: "escalated"

@@ -37,23 +37,30 @@ inputs:
     description: Partial document body — only the fields provided will be updated
     required: true
 
+consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
+
 steps:
 
   - name: update_document
-    type: elasticsearch.request
+    type: http
     with:
       method: POST
-      path: "/{{ inputs.index_name }}/_update/{{ inputs.document_id }}"
+      url: "{{ consts.es_url }}/{{ inputs.index_name }}/_update/{{ inputs.document_id }}"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
       body:
-        doc: ${{ inputs.document }}
+        doc: "{{ inputs.document }}"
 
   - name: confirm
     type: console
     with:
-      message: "Document {{ inputs.document_id }} updated in {{ inputs.index_name }} (result: {{ steps.update_document.output.result }})"
+      message: "Document {{ inputs.document_id }} updated in {{ inputs.index_name }} (result: {{ steps.update_document.output.data.result }})"
 
 outputs:
   document_id:
     value: "{{ inputs.document_id }}"
   result:
-    value: "{{ steps.update_document.output.result }}"
+    value: "{{ steps.update_document.output.data.result }}"

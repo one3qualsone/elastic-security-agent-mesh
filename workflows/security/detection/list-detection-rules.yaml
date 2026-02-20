@@ -36,10 +36,6 @@ inputs:
     type: string
     description: "Sort order: asc or desc"
     default: "asc"
-  - name: filter
-    type: string
-    description: "KQL filter string (e.g., alert.attributes.enabled: true)"
-    required: false
   - name: search
     type: string
     description: "Free text search across rule names and descriptions"
@@ -47,20 +43,11 @@ inputs:
 
 steps:
 
-  - name: build_query_params
-    type: console
-    with:
-      message: |
-        {% assign params = "page=" | append: inputs.page | append: "&per_page=" | append: inputs.per_page | append: "&sort_field=" | append: inputs.sort_field | append: "&sort_order=" | append: inputs.sort_order %}
-        {% if inputs.filter %}{% assign params = params | append: "&filter=" | append: inputs.filter %}{% endif %}
-        {% if inputs.search %}{% assign params = params | append: "&search=" | append: inputs.search %}{% endif %}
-        {{ params }}
-
   - name: list_rules
     type: kibana.request
     with:
       method: GET
-      path: "/api/detection_engine/rules/_find?page={{ inputs.page }}&per_page={{ inputs.per_page }}&sort_field={{ inputs.sort_field }}&sort_order={{ inputs.sort_order }}{% if inputs.filter %}&filter={{ inputs.filter }}{% endif %}{% if inputs.search %}&search={{ inputs.search }}{% endif %}"
+      path: "/api/detection_engine/rules/_find?page={{ inputs.page }}&per_page={{ inputs.per_page }}&sort_field={{ inputs.sort_field }}&sort_order={{ inputs.sort_order }}"
 
   - name: output_summary
     type: console

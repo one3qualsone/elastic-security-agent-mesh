@@ -15,7 +15,7 @@
 # Tags: Example, Agentic Workflow, SOC Agent
 # =============================================================================
 version: '1'
-name: 🔒 AD - Automated Triaging
+name: AD - Automated Triaging
 description: A workflow to automatically process attack discoveries, create cases, analyze with AI, and execute remediation steps
 enabled: true
 
@@ -28,7 +28,7 @@ enabled: true
 #   - Filtering in the workflow library
 #   - Grouping related workflows together
 # ---------------------------------------------------------------------------
-tags: []
+tags:
   - Example
   - Agentic Workflow
   - SOC Agent

@@ -49,9 +49,8 @@ inputs:
 steps:
 
   - name: create_approval_case
-    type: kibana.cases
+    type: kibana.createCaseDefaultSpace
     with:
-      action: create
       title: "Approval Required: {{ inputs.action_type }} — {{ inputs.target }}"
       description: |
         ## Tier 2 Action — Human Approval Required
@@ -72,11 +71,19 @@ steps:
 
         **To approve:** Add a comment with `APPROVED` and close the case.
         **To deny:** Add a comment with `DENIED` and the reason, then close the case.
+      owner: securitySolution
       tags:
         - governance
         - tier-2-approval
         - "{{ inputs.action_type }}"
-      severity: "high"
+      severity: high
+      settings:
+        syncAlerts: false
+      connector:
+        id: none
+        name: none
+        type: .none
+        fields: null
 
   - name: confirm
     type: console

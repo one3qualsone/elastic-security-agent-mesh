@@ -141,7 +141,7 @@ steps:
   - name: parse_filters
     type: console
     with:
-      message: ${{ steps.prepare_filters.output | json_parse }}
+      message: "{{ steps.prepare_filters.output | json_parse }}"
 
 
   # -------------------------------------------------------------------------
@@ -167,5 +167,5 @@ steps:
             - semantic:
                 field: semantic_summary
                 query: "{{ inputs.query_text }}"
-          must: ${{ steps.parse_filters.output }}
+          must: "{{ steps.parse_filters.output }}"
           minimum_should_match: 1

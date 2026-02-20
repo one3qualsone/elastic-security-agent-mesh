@@ -119,9 +119,9 @@ steps:
         expires_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' | plus: 2592000 }}"
         metadata:
           lookback_days: "{{ inputs.lookback_days }}"
-          tp_buckets: ${{ steps.query_tp_counts.output.aggregations.by_rule.buckets }}
-          fp_buckets: ${{ steps.query_fp_counts.output.aggregations.by_rule.buckets }}
-          total_buckets: ${{ steps.query_total_counts.output.aggregations.by_rule.buckets }}
+          tp_buckets: "{{ steps.query_tp_counts.output.aggregations.by_rule.buckets }}"
+          fp_buckets: "{{ steps.query_fp_counts.output.aggregations.by_rule.buckets }}"
+          total_buckets: "{{ steps.query_total_counts.output.aggregations.by_rule.buckets }}"
 
   - name: confirm
     type: console

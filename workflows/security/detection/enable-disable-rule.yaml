@@ -38,7 +38,7 @@ steps:
       path: /api/detection_engine/rules
       body:
         rule_id: "{{ inputs.rule_id }}"
-        enabled: ${{ inputs.enabled }}
+        enabled: "{{ inputs.enabled }}"
 
   - name: confirm
     type: console

@@ -9,6 +9,8 @@
 #
 # This workflow is mesh-specific — it creates indices with our opinionated
 # mapping schema. Run once per knowledge base index during initial setup.
+# The Python setup script handles this automatically; this workflow is
+# available as a manual alternative.
 #
 # PREREQUISITES:
 #   - An inference endpoint must be configured in Elasticsearch. Deploy
@@ -49,14 +51,19 @@ inputs:
     description: Number of replica shards
     default: 1
 
+consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
+
 steps:
 
-  # Check if the index already exists to avoid overwriting
   - name: check_index_exists
-    type: elasticsearch.request
+    type: http
     with:
       method: HEAD
-      path: "/{{ inputs.index_name }}"
+      url: "{{ consts.es_url }}/{{ inputs.index_name }}"
+      headers:
+        Authorization: "ApiKey {{ consts.es_api_key }}"
     on-failure:
       continue: true
 
@@ -73,10 +80,13 @@ steps:
     else:
 
       - name: create_index
-        type: elasticsearch.request
+        type: http
         with:
           method: PUT
-          path: "/{{ inputs.index_name }}"
+          url: "{{ consts.es_url }}/{{ inputs.index_name }}"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
           body:
             settings:
               number_of_shards: "{{ inputs.number_of_shards }}"

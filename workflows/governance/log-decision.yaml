@@ -50,15 +50,20 @@ inputs:
     required: true
 
 consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
   index_name: "investigation-contexts"
 
 steps:
 
   - name: log_action
-    type: elasticsearch.request
+    type: http
     with:
       method: POST
-      path: "/{{ consts.index_name }}/_update/{{ inputs.document_id }}"
+      url: "{{ consts.es_url }}/{{ consts.index_name }}/_update/{{ inputs.document_id }}"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
       body:
         script:
           source: |
@@ -83,4 +88,4 @@ steps:
 
 outputs:
   status:
-    value: "{{ steps.log_action.output.result }}"
+    value: "{{ steps.log_action.output.data.result }}"

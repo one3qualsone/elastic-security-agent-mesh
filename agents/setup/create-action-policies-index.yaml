@@ -7,6 +7,8 @@
 # limits for a specific action type.
 #
 # Run once during initial mesh setup, then seed with default policies.
+# The Python setup script handles this automatically; this workflow is
+# available as a manual alternative.
 #
 # Author: Security Agent Mesh
 # =============================================================================
@@ -24,15 +26,19 @@ triggers:
   - type: manual
 
 consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
   index_name: "action-policies"
 
 steps:
 
   - name: check_index_exists
-    type: elasticsearch.request
+    type: http
     with:
       method: HEAD
-      path: "/{{ consts.index_name }}"
+      url: "{{ consts.es_url }}/{{ consts.index_name }}"
+      headers:
+        Authorization: "ApiKey {{ consts.es_api_key }}"
     on-failure:
       continue: true
 
@@ -49,10 +55,13 @@ steps:
     else:
 
       - name: create_index
-        type: elasticsearch.request
+        type: http
         with:
           method: PUT
-          path: "/{{ consts.index_name }}"
+          url: "{{ consts.es_url }}/{{ consts.index_name }}"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
           body:
             settings:
               number_of_shards: 1

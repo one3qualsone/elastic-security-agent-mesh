@@ -39,7 +39,7 @@ steps:
     type: elasticsearch.index
     with:
       index: "{{ inputs.index_name }}"
-      document: ${{ inputs.document }}
+      document: "{{ inputs.document }}"
 
   - name: confirm
     type: console

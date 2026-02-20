@@ -3,8 +3,9 @@
 # Category: security/detection
 #
 # Verifies that specific ECS fields exist in the customer's log data by
-# running an ES|QL query against logs-*. Used before creating detection
-# rules to ensure the required data sources are present.
+# checking field capabilities against the specified index pattern. Used
+# before creating detection rules to ensure the required data sources are
+# present.
 #
 # Author: Security Agent Mesh
 # =============================================================================
@@ -33,13 +34,20 @@ inputs:
     description: "How far back to look for data"
     default: "7d"
 
+consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
+
 steps:
 
   - name: check_fields
-    type: elasticsearch.request
+    type: http
     with:
       method: POST
-      path: "/{{ inputs.index_pattern }}/_field_caps"
+      url: "{{ consts.es_url }}/{{ inputs.index_pattern }}/_field_caps"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
       body:
         fields: "{{ inputs.field_names }}"
 
@@ -49,8 +57,8 @@ steps:
       message: |
         Field availability check for index pattern: {{ inputs.index_pattern }}
         Fields requested: {{ inputs.field_names }}
-        Results: {{ steps.check_fields.output.fields }}
+        Results: {{ steps.check_fields.output.data.fields }}
 
 outputs:
   fields:
-    value: "{{ steps.check_fields.output.fields }}"
+    value: "{{ steps.check_fields.output.data.fields }}"

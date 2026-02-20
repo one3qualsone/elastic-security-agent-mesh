@@ -72,7 +72,7 @@ steps:
         evidence: []
         actions_taken: []
         pending_actions: []
-        tags: ${{ inputs.tags | default: '[]' }}
+        tags: "{{ inputs.tags | default: '[]' }}"
         created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
         updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
 

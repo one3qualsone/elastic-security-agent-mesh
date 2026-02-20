@@ -59,10 +59,10 @@ steps:
         agent_id: "{{ inputs.agent_id }}"
         agent_name: "{{ inputs.agent_name }}"
         domain: "{{ inputs.domain }}"
-        capabilities: ${{ inputs.capabilities }}
+        capabilities: {{ inputs.capabilities }}
         description: "{{ inputs.description }}"
         semantic_description: "{{ inputs.agent_name }}. {{ inputs.description }}"
-        keywords: ${{ inputs.keywords }}
+        keywords: "{{ inputs.keywords }}"
         status: "active"
         version: "1.0"
         created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
