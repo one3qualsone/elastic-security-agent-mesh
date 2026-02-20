@@ -29,6 +29,7 @@ Workflow placeholder tokens (replaced at import time with env var values):
     __KIBANA_API_KEY__    ← KIBANA_API_KEY
     __VT_API_KEY__        ← VIRUSTOTAL_API_KEY
     __ABUSEIPDB_API_KEY__ ← ABUSEIPDB_API_KEY
+    __LLM_CONNECTOR_ID__  ← LLM_CONNECTOR_ID
 """
 
 import argparse
@@ -465,6 +466,7 @@ def build_replacements():
         "__KIBANA_API_KEY__": os.environ.get("KIBANA_API_KEY", ""),
         "__VT_API_KEY__": os.environ.get("VIRUSTOTAL_API_KEY", ""),
         "__ABUSEIPDB_API_KEY__": os.environ.get("ABUSEIPDB_API_KEY", ""),
+        "__LLM_CONNECTOR_ID__": os.environ.get("LLM_CONNECTOR_ID", ""),
     }
 
 

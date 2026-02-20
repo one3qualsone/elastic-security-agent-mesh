@@ -26,6 +26,9 @@ enabled: true
 triggers:
   - type: manual
 
+consts:
+  connector_id: "__LLM_CONNECTOR_ID__"
+
 # ---------------------------------------------------------------------------
 # INPUTS
 # ---------------------------------------------------------------------------
@@ -81,6 +84,7 @@ steps:
       path: /api/agent_builder/converse
       body:
         agent_id: "{{ inputs.agent_id }}"
+        connector_id: "{{ consts.connector_id }}"
         input: "{{ inputs.question }}"
 
   # -------------------------------------------------------------------------

@@ -99,6 +99,12 @@ The setup requires environment variables for your Elastic deployment. You can pr
 | `KIBANA_SPACE` | *(default space)* | Target Kibana space for workflows and agents |
 | `INFERENCE_ENDPOINT_ID` | `.multilingual-e5-small-elasticsearch` | Inference endpoint powering semantic_text fields |
 
+**Required (LLM connector for agent-to-agent calls):**
+
+| Variable | Description |
+|----------|-------------|
+| `LLM_CONNECTOR_ID` | The Kibana connector ID for your LLM. Find it in **Stack Management > Connectors** — click your connector and copy the ID from the URL or details panel. This is injected into workflows that call agents programmatically (Call Subagent, Orchestrator Router, Mesh Automated Triaging). |
+
 **Optional (third-party integrations):**
 
 | Variable | Description |
@@ -190,13 +196,25 @@ Web search gives agents the ability to research current threats, regulatory upda
 
 See the [Web Search Integration](#web-search-integration-mcp--optional-but-recommended) section below for full setup instructions.
 
-#### Step 3: Assign LLM Connector
+#### Step 3: Configure LLM Connector
 
-The API cannot assign an LLM connector to agents. For each agent:
+The LLM connector is needed in two places:
+
+**a) Agent Builder UI** — for interactive chat with agents:
 
 1. Navigate to **Agent Builder** in Kibana
-2. Open each agent (they'll be named `Security Mesh Orchestrator`, `Detection Engineering Agent`, etc.)
-3. In the agent settings, select your LLM connector (Claude Sonnet, GPT-4o, Gemini, etc.)
+2. Open each agent and select your LLM connector in the chat/model dropdown
+
+**b) GitHub Actions secret** — for agent-to-agent calls via workflows:
+
+The Call Subagent, Orchestrator Router, and Mesh Automated Triaging workflows invoke agents programmatically via the converse API. They need a `connector_id` to specify which LLM to use.
+
+1. Go to **Stack Management > Connectors** in Kibana
+2. Click your LLM connector (e.g., Claude 4.5 Opus, or your custom connector)
+3. Copy the connector ID from the URL or details panel
+4. Add it as `LLM_CONNECTOR_ID` in your GitHub Actions secrets (or export locally)
+
+The setup script injects this into the workflow YAML files during deployment, just like API keys.
 
 #### Step 4: Sync Agents
 

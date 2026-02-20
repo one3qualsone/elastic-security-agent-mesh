@@ -25,7 +25,10 @@ enabled: true
 # ---------------------------------------------------------------------------
 triggers:
   - type: manual
-  - type:  alert
+  - type: alert
+
+consts:
+  connector_id: "__LLM_CONNECTOR_ID__"
 
 # ---------------------------------------------------------------------------
 # STEPS
@@ -73,5 +76,6 @@ steps:
       path: /api/agent_builder/converse
       body:
         agent_id: alert.triage
+        connector_id: "{{ consts.connector_id }}"
         input: "Triage the following alert based on your system instructions: {{event | json}}"
     timeout: 600s

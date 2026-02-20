@@ -32,6 +32,7 @@ inputs:
     required: true
 
 consts:
+  connector_id: "__LLM_CONNECTOR_ID__"
   registry_index: "agent-registry"
 
 steps:
@@ -75,6 +76,7 @@ steps:
           path: /api/agent_builder/converse
           body:
             agent_id: "{{ steps.find_agent.output.hits.hits[0]._source.agent_id }}"
+            connector_id: "{{ consts.connector_id }}"
             input: "{{ inputs.request }}"
         timeout: 600s
 

@@ -28,6 +28,7 @@ triggers:
   - type: alert
 
 consts:
+  connector_id: "__LLM_CONNECTOR_ID__"
   es_url: "__ES_URL__"
   es_api_key: "__ES_API_KEY__"
   investigation_index: "investigation-contexts"
@@ -117,6 +118,7 @@ steps:
               path: /api/agent_builder/converse
               body:
                 agent_id: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
+                connector_id: "{{ consts.connector_id }}"
                 input: |
                   Triage this security alert. Investigation document ID: {{ steps.create_investigation.output._id }}
 
