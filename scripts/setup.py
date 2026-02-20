@@ -1182,6 +1182,8 @@ def main():
         delete_agents()
         delete_tools()
         delete_workflows()
+        print("  Waiting 15s for deletions to propagate...\n")
+        time.sleep(15)
         create_all_indices()
         seed_action_policies()
         wf_map = import_workflows()
