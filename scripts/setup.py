@@ -12,10 +12,21 @@ Set required variables before running (see README.md for full instructions):
     export KIBANA_API_KEY=your-kibana-api-key
 
 Usage:
-    python scripts/setup.py                  # Run full setup
-    python scripts/setup.py --indices-only   # Only create indices
-    python scripts/setup.py --workflows-only # Only import workflows
-    python scripts/setup.py --validate       # Validate env vars without deploying
+    python scripts/setup.py                    # Run full setup
+    python scripts/setup.py --indices-only     # Only create indices
+    python scripts/setup.py --workflows-only   # Only import workflows
+    python scripts/setup.py --seed-policies    # Only seed action policies
+    python scripts/setup.py --delete-workflows # Delete all workflows then re-import
+    python scripts/setup.py --validate         # Validate env vars without deploying
+
+Workflow placeholder tokens (replaced at import time with env var values):
+    __ES_URL__            ← ELASTIC_CLOUD_URL
+    __ES_API_KEY__        ← ES_API_KEY
+    __KIBANA_URL__        ← KIBANA_URL
+    __KIBANA_API_KEY__    ← KIBANA_API_KEY
+    __VT_API_KEY__        ← VIRUSTOTAL_API_KEY
+    __ABUSEIPDB_API_KEY__ ← ABUSEIPDB_API_KEY
+    __LLM_CONNECTOR_ID__  ← LLM_CONNECTOR_ID
 """
 
 import argparse
@@ -434,22 +445,103 @@ def seed_action_policies():
     print()
 
 
-def import_workflows():
-    """Import all workflow YAML files into Kibana."""
-    print("=== Importing Workflows ===\n")
-
-    base_url = kibana_base_url()
-    headers = kibana_headers()
-    success = 0
-    failed = 0
-    skipped = 0
-
-    replacements = {
+def build_replacements():
+    """Build the token → value map for injecting secrets into workflow YAML."""
+    return {
         "__ES_URL__": os.environ.get("ELASTIC_CLOUD_URL", ""),
         "__ES_API_KEY__": os.environ.get("ES_API_KEY", ""),
         "__KIBANA_URL__": os.environ.get("KIBANA_URL", ""),
         "__KIBANA_API_KEY__": os.environ.get("KIBANA_API_KEY", ""),
+        "__VT_API_KEY__": os.environ.get("VIRUSTOTAL_API_KEY", ""),
+        "__ABUSEIPDB_API_KEY__": os.environ.get("ABUSEIPDB_API_KEY", ""),
+        "__LLM_CONNECTOR_ID__": os.environ.get("LLM_CONNECTOR_ID", ""),
     }
+
+
+def apply_replacements(yaml_content, replacements):
+    """Replace placeholder tokens in YAML content with real values."""
+    for placeholder, value in replacements.items():
+        if value:
+            yaml_content = yaml_content.replace(placeholder, value)
+    return yaml_content
+
+
+def delete_workflows():
+    """Delete all workflows from Kibana so they can be re-imported cleanly."""
+    print("=== Deleting Existing Workflows ===\n")
+
+    base_url = kibana_base_url()
+    headers = kibana_headers()
+
+    resp = requests.get(
+        f"{base_url}/api/workflows",
+        headers=headers,
+        timeout=30,
+    )
+
+    if not resp.ok:
+        print(f"  [FAILED] Could not list workflows: {resp.status_code}")
+        print(f"  {resp.text[:300]}")
+        return
+
+    workflows = resp.json()
+    if not isinstance(workflows, list):
+        workflows = workflows.get("data", workflows.get("items", []))
+
+    if not workflows:
+        print("  No existing workflows found.\n")
+        return
+
+    deleted = 0
+    errors = 0
+    for wf in workflows:
+        wf_id = wf.get("id", "")
+        wf_name = wf.get("name", wf_id)
+        if not wf_id:
+            continue
+
+        del_resp = requests.delete(
+            f"{base_url}/api/workflows/{wf_id}",
+            headers=headers,
+            timeout=15,
+        )
+        if del_resp.ok or del_resp.status_code == 204:
+            print(f"  [deleted] {wf_name}")
+            deleted += 1
+        else:
+            print(f"  [FAILED] {wf_name}: {del_resp.status_code}")
+            errors += 1
+
+        time.sleep(0.1)
+
+    print(f"\n  Deleted {deleted} workflows ({errors} errors)\n")
+
+
+def import_workflows():
+    """Import all workflow YAML files into Kibana.
+
+    For each file the script:
+      1. Replaces placeholder tokens (__ES_URL__, __VT_API_KEY__, etc.)
+         with real values from environment variables.
+      2. POSTs the YAML to create the workflow.
+      3. If the workflow already exists (409) it PUTs to update it instead,
+         so re-running the script always converges to the repo state.
+    """
+    print("=== Importing Workflows ===\n")
+
+    base_url = kibana_base_url()
+    headers = kibana_headers()
+    replacements = build_replacements()
+
+    active_tokens = {k: ("set" if v else "NOT SET") for k, v in replacements.items()}
+    print("  Placeholder injection:")
+    for token, status in active_tokens.items():
+        print(f"    {token}: {status}")
+    print()
+
+    success = 0
+    updated = 0
+    failed = 0
 
     for workflow_dir in WORKFLOW_DIRS:
         dir_path = REPO_ROOT / workflow_dir
@@ -465,9 +557,7 @@ def import_workflows():
             with open(yaml_file) as f:
                 yaml_content = f.read()
 
-            for placeholder, value in replacements.items():
-                if value:
-                    yaml_content = yaml_content.replace(placeholder, value)
+            yaml_content = apply_replacements(yaml_content, replacements)
 
             resp = requests.post(
                 f"{base_url}/api/workflows",
@@ -482,15 +572,31 @@ def import_workflows():
                 print(f"    [imported] {name}")
                 success += 1
             elif resp.status_code == 409:
-                print(f"    [skip] {yaml_file.name} (already exists)")
-                skipped += 1
+                wf_id = resp.json().get("id", "")
+                if wf_id:
+                    put_resp = requests.put(
+                        f"{base_url}/api/workflows/{wf_id}",
+                        headers=headers,
+                        json={"yaml": yaml_content},
+                        timeout=30,
+                    )
+                    if put_resp.ok:
+                        name = put_resp.json().get("name", yaml_file.stem)
+                        print(f"    [updated] {name}")
+                        updated += 1
+                    else:
+                        print(f"    [FAILED update] {yaml_file.name}: {put_resp.status_code}")
+                        failed += 1
+                else:
+                    print(f"    [skip] {yaml_file.name} (exists, no id returned)")
+                    updated += 1
             else:
                 print(f"    [FAILED] {yaml_file.name}: {resp.status_code}")
                 failed += 1
 
             time.sleep(0.3)
 
-    print(f"\n  Total: {success} imported, {skipped} skipped, {failed} failed\n")
+    print(f"\n  Total: {success} imported, {updated} updated, {failed} failed\n")
 
 
 def print_manual_steps():
@@ -524,10 +630,12 @@ def print_manual_steps():
 
 def main():
     parser = argparse.ArgumentParser(description="Elastic Security Agent Mesh setup")
-    parser.add_argument("--validate", action="store_true", help="Validate .env only")
+    parser.add_argument("--validate", action="store_true", help="Validate env vars only")
     parser.add_argument("--indices-only", action="store_true", help="Only create indices")
     parser.add_argument("--workflows-only", action="store_true", help="Only import workflows")
     parser.add_argument("--seed-policies", action="store_true", help="Only seed action policies")
+    parser.add_argument("--delete-workflows", action="store_true",
+                        help="Delete all workflows from Kibana before importing")
     args = parser.parse_args()
 
     print()
@@ -540,6 +648,12 @@ def main():
 
     if args.validate:
         print("Validation complete.")
+        return
+
+    if args.delete_workflows:
+        delete_workflows()
+        if not (args.indices_only or args.workflows_only or args.seed_policies):
+            import_workflows()
         return
 
     if args.indices_only:

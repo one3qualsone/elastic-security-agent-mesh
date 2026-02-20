@@ -12,6 +12,7 @@ on:
           - indices-only
           - workflows-only
           - seed-policies
+          - delete-and-reimport
           - validate
         default: full-setup
 
@@ -62,6 +63,9 @@ jobs:
               ;;
             seed-policies)
               python scripts/setup.py --seed-policies
+              ;;
+            delete-and-reimport)
+              python scripts/setup.py --delete-workflows
               ;;
           esac
 

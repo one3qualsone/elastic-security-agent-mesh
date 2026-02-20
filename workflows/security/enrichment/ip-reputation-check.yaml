@@ -27,7 +27,7 @@ description: Check IP address reputation using AbuseIPDB and enrich with geoloca
 #   - Values that may need to change across environments
 # ---------------------------------------------------------------------------
 consts:
-  api_key: API-KEY
+  api_key: "__ABUSEIPDB_API_KEY__"
   abuseipdb_base_url: https://api.abuseipdb.com/api/v2
   ipapi_base_url: http://ip-api.com/json
 

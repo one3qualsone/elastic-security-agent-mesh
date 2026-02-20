@@ -16,7 +16,7 @@ triggers:
   - type: manual
 
 consts:
-  vt_api_key: YOUR-VT-API-KEY
+  vt_api_key: "__VT_API_KEY__"
 
 inputs:
   - name: url
