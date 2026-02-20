@@ -110,6 +110,10 @@ tools:
   - name: Request Approval
     workflow: workflows/governance/request-approval.yaml
     description: Request human approval for Tier 2 actions via Elastic Cases
+  - name: Security Alerts
+    type: builtin
+    tool_id: security.alerts
+    description: Search and analyze security alerts for triage and investigation
   - name: Agent Registry
     type: index_search
     index: agent-registry

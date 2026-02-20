@@ -100,6 +100,14 @@ tools:
   - name: Request Approval
     workflow: workflows/governance/request-approval.yaml
     description: Request human approval for Tier 2 actions via Elastic Cases
+  - name: Execute ES|QL
+    type: builtin
+    tool_id: platform.core.execute_esql
+    description: Run ES|QL queries for forensic investigation and timeline analysis
+  - name: Security Alerts
+    type: builtin
+    tool_id: security.alerts
+    description: Search security alerts related to the investigation
   - name: Agent Registry
     type: index_search
     index: agent-registry

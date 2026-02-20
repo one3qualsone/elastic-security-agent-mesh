@@ -751,6 +751,13 @@ def create_tools(workflow_name_to_id):
         tool_id = slugify(tool_name)
         tool_type = tool_def.get("type", "workflow")
 
+        if tool_type == "builtin":
+            builtin_id = tool_def.get("tool_id", "")
+            if builtin_id:
+                tool_name_to_id[tool_name] = builtin_id
+                print(f"    [builtin] {tool_name} → {builtin_id}")
+            continue
+
         if tool_type == "index_search":
             index_name = tool_def.get("index", "")
             payload = {
@@ -855,6 +862,8 @@ def delete_tools():
     expected_ids = set()
     for agent_def in agent_defs:
         for tool in agent_def.get("tools", []):
+            if tool.get("type") == "builtin":
+                continue
             expected_ids.add(slugify(tool["name"]))
 
     deleted = 0

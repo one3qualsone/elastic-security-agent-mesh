@@ -57,6 +57,14 @@ tools:
   - name: Check Knowledge Staleness
     workflow: workflows/knowledge/check-knowledge-staleness.yaml
     description: Identify stale knowledge documents that need refreshing
+  - name: Cases
+    type: builtin
+    tool_id: platform.core.cases
+    description: Retrieve, create, and update cases for incident management coordination
+  - name: Security Alerts
+    type: builtin
+    tool_id: security.alerts
+    description: Search security alerts for operational awareness and volume monitoring
   - name: Agent Registry
     type: index_search
     index: agent-registry

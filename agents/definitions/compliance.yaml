@@ -66,6 +66,10 @@ tools:
   - name: Add Knowledge Document
     workflow: workflows/knowledge/add-knowledge-document.yaml
     description: Add new regulatory content to the knowledge base
+  - name: Elasticsearch Search
+    type: builtin
+    tool_id: platform.core.search
+    description: Search Elasticsearch data to explore detection rules and data sources for compliance mapping
   - name: Agent Registry
     type: index_search
     index: agent-registry

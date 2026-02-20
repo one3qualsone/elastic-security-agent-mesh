@@ -46,6 +46,14 @@ system_instructions: |
 knowledge_bases: []
 
 tools:
+  - name: Elasticsearch Search
+    type: builtin
+    tool_id: platform.core.search
+    description: Search the agent-registry index and any other Elasticsearch data to find specialist agents and relevant information
+  - name: Cases
+    type: builtin
+    tool_id: platform.core.cases
+    description: Retrieve and review cases from Elastic Security for cross-agent coordination
   - name: Agent Registry
     type: index_search
     index: agent-registry

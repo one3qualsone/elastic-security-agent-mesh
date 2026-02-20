@@ -125,6 +125,18 @@ tools:
   - name: Add Knowledge Document
     workflow: workflows/knowledge/add-knowledge-document.yaml
     description: Index a new document into a knowledge base
+  - name: Execute ES|QL
+    type: builtin
+    tool_id: platform.core.execute_esql
+    description: Execute ES|QL queries to test detection logic against live data
+  - name: Generate ES|QL
+    type: builtin
+    tool_id: platform.core.generate_esql
+    description: Generate ES|QL queries from natural language for detection rule development
+  - name: Security Alerts
+    type: builtin
+    tool_id: security.alerts
+    description: Search and analyze security alerts to evaluate detection rule effectiveness
   - name: Agent Registry
     type: index_search
     index: agent-registry
