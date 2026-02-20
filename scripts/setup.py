@@ -477,54 +477,64 @@ def apply_replacements(yaml_content, replacements):
 
 
 def delete_workflows():
-    """Delete all workflows from Kibana so they can be re-imported cleanly."""
+    """Delete all workflows from Kibana so they can be re-imported cleanly.
+
+    Handles pagination by repeating the list+delete cycle until no
+    workflows remain or no progress is made.
+    """
     print("=== Deleting Existing Workflows ===\n")
 
     base_url = kibana_base_url()
     headers = kibana_headers()
 
-    resp = requests.get(
-        f"{base_url}/api/workflows",
-        headers=headers,
-        timeout=30,
-    )
+    total_deleted = 0
+    total_errors = 0
 
-    if not resp.ok:
-        print(f"  [FAILED] Could not list workflows: {resp.status_code}")
-        print(f"  {resp.text[:300]}")
-        return
-
-    workflows = resp.json()
-    if not isinstance(workflows, list):
-        workflows = workflows.get("data", workflows.get("items", []))
-
-    if not workflows:
-        print("  No existing workflows found.\n")
-        return
-
-    deleted = 0
-    errors = 0
-    for wf in workflows:
-        wf_id = wf.get("id", "")
-        wf_name = wf.get("name", wf_id)
-        if not wf_id:
-            continue
-
-        del_resp = requests.delete(
-            f"{base_url}/api/workflows/{wf_id}",
+    while True:
+        resp = requests.get(
+            f"{base_url}/api/workflows",
             headers=headers,
-            timeout=15,
+            timeout=30,
         )
-        if del_resp.ok or del_resp.status_code == 204:
-            print(f"  [deleted] {wf_name}")
-            deleted += 1
-        else:
-            print(f"  [FAILED] {wf_name}: {del_resp.status_code}")
-            errors += 1
 
-        time.sleep(0.1)
+        if not resp.ok:
+            print(f"  [FAILED] Could not list workflows: {resp.status_code}")
+            print(f"  {resp.text[:300]}")
+            return
 
-    print(f"\n  Deleted {deleted} workflows ({errors} errors)\n")
+        workflows = resp.json()
+        if not isinstance(workflows, list):
+            workflows = workflows.get("data", workflows.get("items", []))
+
+        if not workflows:
+            break
+
+        deleted_this_round = 0
+        for wf in workflows:
+            wf_id = wf.get("id", "")
+            wf_name = wf.get("name", wf_id)
+            if not wf_id:
+                continue
+
+            del_resp = requests.delete(
+                f"{base_url}/api/workflows/{wf_id}",
+                headers=headers,
+                timeout=15,
+            )
+            if del_resp.ok or del_resp.status_code == 204:
+                print(f"  [deleted] {wf_name}")
+                total_deleted += 1
+                deleted_this_round += 1
+            else:
+                print(f"  [FAILED] {wf_name}: {del_resp.status_code}")
+                total_errors += 1
+
+            time.sleep(0.1)
+
+        if deleted_this_round == 0:
+            break
+
+    print(f"\n  Deleted {total_deleted} workflows ({total_errors} errors)\n")
 
 
 def import_workflows():
@@ -754,6 +764,29 @@ def create_tools(workflow_name_to_id):
                     "max_rows": 10,
                 },
             }
+            resp = requests.post(
+                f"{base_url}/api/agent_builder/tools",
+                headers=headers,
+                json=payload,
+                timeout=30,
+            )
+            if resp.ok:
+                print(f"    [created] {tool_name} ({tool_id})")
+                tool_name_to_id[tool_name] = tool_id
+                created += 1
+            elif resp.status_code in (400, 409) and "already exists" in resp.text:
+                print(f"    [exists]  {tool_name} ({tool_id})")
+                tool_name_to_id[tool_name] = tool_id
+                skipped += 1
+            else:
+                print(f"    [MANUAL]  {tool_name} — index_search tools may require UI creation")
+                print(f"              API response: {resp.status_code} — {resp.text[:300]}")
+                print(f"              Create manually: Agent Builder > Tools > New tool")
+                print(f"              Type: Index Search | Index: {index_name} | ID: {tool_id}")
+                tool_name_to_id[tool_name] = tool_id
+                failed += 1
+            time.sleep(0.2)
+            continue
         else:
             wf_id = _resolve_workflow_id(tool_name, tool_def, workflow_name_to_id)
             if not wf_id:
