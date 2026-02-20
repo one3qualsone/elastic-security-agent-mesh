@@ -25,4 +25,4 @@ workflow-metadata.json
 .env
 .env.*
 *.key
-*.pem
+*.pem__pycache__/

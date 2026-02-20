@@ -135,8 +135,8 @@ export KIBANA_API_KEY=your-kibana-api-key
 export KIBANA_SPACE=your-space-id
 export INFERENCE_ENDPOINT_ID=.multilingual-e5-small-elasticsearch
 
-# Install dependency and run
-pip install requests
+# Install dependencies and run
+pip install requests pyyaml
 python scripts/setup.py
 
 # Or run specific steps
@@ -144,6 +144,9 @@ python scripts/setup.py --validate        # Check environment variables
 python scripts/setup.py --indices-only    # Only create Elasticsearch indices
 python scripts/setup.py --workflows-only  # Only import workflows into Kibana
 python scripts/setup.py --seed-policies   # Only seed governance action policies
+python scripts/setup.py --tools-only      # Only create tools in Agent Builder
+python scripts/setup.py --agents-only     # Only create agents in Agent Builder
+python scripts/setup.py --delete-all      # Delete everything and re-deploy from scratch
 ```
 
 ### What the setup does
@@ -154,43 +157,51 @@ python scripts/setup.py --seed-policies   # Only seed governance action policies
 4. Creates all `kb-*` knowledge base indices
 5. Seeds default governance policies (Tier 0/1/2)
 6. Imports all workflow YAML files into Kibana
+7. Creates all tools in Agent Builder (workflow tools + index search tools)
+8. Creates all 7 agents in Agent Builder with system prompts and tool assignments
+9. Registers all agents in the `agent-registry` for semantic mesh discovery
 
-### Post-Setup: Create Agents
+### Post-Setup
 
-After the automated setup completes, you create the agents in Agent Builder and register them in the mesh. The definition files in `agents/definitions/` contain the full system prompts, but this section gives you the concrete values to enter.
+The setup script automatically creates all tools, agents, and mesh registrations. The remaining manual steps are:
 
-#### Step 1: Create Each Agent in Agent Builder
+#### Step 1: Assign LLM Connector
 
-Navigate to **Agent Builder** in Kibana. For each agent, create a new agent with your LLM connector (Claude Sonnet, GPT-4o, Gemini, etc.) and assign the tools and knowledge bases listed below.
+The API cannot assign an LLM connector to agents (this is a Kibana UI setting). After setup:
 
-Agent Builder supports four tool types: **Workflows**, **Index Search**, **ES|QL**, and **MCP**. This mesh uses Workflows and Index Search.
+1. Navigate to **Agent Builder** in Kibana
+2. Open each agent (they'll be named `Security Mesh Orchestrator`, `Detection Engineering Agent`, etc.)
+3. In the agent settings, select your LLM connector (Claude Sonnet, GPT-4o, Gemini, etc.)
 
-**Adding workflow tools:** In the agent editor, click **Add tool** > **Workflow**, then select the workflow by name from the dropdown. The workflow names below match the names imported in the previous step.
+All tools and system instructions are already configured — you just need to pick the model.
 
-**Adding the Agent Registry (Index Search) tool:** Click **Add tool** > **Index Search**, then set:
-- **Index**: `agent-registry`
-- **Name**: `Agent Registry` (or any descriptive name)
-- **Description**: `Search the agent registry to find specialist agents by capability, domain, or description. Returns agent_id, agent_name, domain, capabilities, and keywords.`
+#### Agents and Tools Reference
 
-This gives the agent semantic search over the `agent-registry` index — it can ask "who handles compliance?" and get back the matching agent's ID to use with Call Subagent.
+The setup script creates the following agents and tools from `agents/definitions/`. Agent Builder supports four tool types: **Workflows**, **Index Search**, **ES|QL**, and **MCP**. This mesh uses Workflows and Index Search.
 
 | # | Agent Name | Workflow Tools | Index Search | Knowledge Bases |
 |---|-----------|---------------|--------------|-----------------|
 | 1 | **Security Mesh Orchestrator** | Call Subagent | agent-registry | *None* |
-| 2 | **Detection Engineering Agent** | List Detection Rules, Get Rule Details, Create Detection Rule, Enable/Disable Rule, Search Rules by MITRE Technique, Evaluate MITRE Coverage, Check Field Availability, Check Action Policy, Create Investigation, Add Evidence, Semantic Knowledge Search, Web Search, Add Knowledge Document, Call Subagent | agent-registry | kb-detection-rules, kb-ecs-schema, kb-mitre-attack |
+| 2 | **Detection Engineering Agent** | List Detection Rules, Get Rule Details, Create Detection Rule, Enable/Disable Rule, Search Rules by MITRE Technique, Evaluate MITRE Coverage, Check Field Availability, Check Action Policy, Create Investigation, Add Evidence, Get Investigation, Update Investigation Status, Log Decision, Semantic Knowledge Search, Web Search, Add Knowledge Document, Call Subagent | agent-registry | kb-detection-rules, kb-ecs-schema, kb-mitre-attack |
 | 3 | **Threat Intelligence Agent** | VT File Hash Report, VT File Upload, VT URL Scan, VT URL Report, VT Domain Report, VT IP Report, IP Reputation Check, Web Search, Semantic Knowledge Search, Add Knowledge Document | *None* | kb-threat-intel, kb-ioc-history |
-| 4 | **Security Analyst Agent** | Semantic Knowledge Search, Tag Alert as True Positive, Tag Alert as False Positive, Close Alert, Acknowledge Alert, Create Case, Add Knowledge Document, VT File Hash Report, VT IP Report, VT Domain Report, IP Reputation Check, Call Subagent | agent-registry | kb-incidents, kb-playbooks |
-| 5 | **Forensics Agent** | Execute Command on Endpoint, Execute and Retrieve, Get Action Status, Semantic Knowledge Search, Add Knowledge Document, VT File Hash Report, VT IP Report, Call Subagent | agent-registry | kb-forensics |
+| 4 | **Security Analyst Agent** | Semantic Knowledge Search, Tag Alert as True Positive, Tag Alert as False Positive, Close Alert, Acknowledge Alert, Create Case, Create Alert Note, Create Investigation, Get Investigation, Update Investigation Status, Add Evidence, Propose Action, Search Similar Investigations, Record Incident Resolution, Check Action Policy, Log Decision, Request Approval, Add Knowledge Document, VT File Hash Report, VT IP Report, VT Domain Report, IP Reputation Check, Call Subagent | agent-registry | kb-incidents, kb-playbooks |
+| 5 | **Forensics Agent** | Execute Command on Endpoint, Execute and Retrieve, Get Action Status, Create Investigation, Get Investigation, Update Investigation Status, Add Evidence, Propose Action, Check Action Policy, Log Decision, Request Approval, Semantic Knowledge Search, Add Knowledge Document, VT File Hash Report, VT IP Report, Call Subagent | agent-registry | kb-forensics |
 | 6 | **Compliance Agent** | Semantic Knowledge Search, Web Search, Add Knowledge Document, Call Subagent | agent-registry | kb-compliance |
-| 7 | **SOC Operations Agent** | Semantic Knowledge Search, Add Knowledge Document, Update Knowledge Document, Remove Knowledge Document, Call Subagent | agent-registry | kb-soc-ops, kb-runbooks |
+| 7 | **SOC Operations Agent** | Semantic Knowledge Search, Add Knowledge Document, Update Knowledge Document, Remove Knowledge Document, Check Knowledge Staleness, Call Subagent | agent-registry | kb-soc-ops, kb-runbooks |
 
 For each agent, copy the `system_instructions` from the corresponding file in `agents/definitions/`. These contain the agent's persona, principles, and behavioural guidance.
 
-#### Step 2: Register Agents in the Mesh
+#### Step 2: Verify Mesh Registration
 
-After creating each agent in Agent Builder, note its **Agent ID** (visible in the browser URL bar when editing the agent, e.g., `/app/agent_builder/agents/<agent-id>`).
+The setup script automatically registers all agents in the `agent-registry` index. Every agent with the **Agent Registry** index search tool can discover other agents via semantic search — the orchestrator uses it for routing, and specialist agents use it to find peers for cross-domain collaboration.
 
-Run the **Register Agent** workflow in Kibana for each agent. This adds the agent to the `agent-registry` Elasticsearch index. Every agent with the **Agent Registry** index search tool can then discover other agents via semantic search on this index — the orchestrator uses it for routing, and specialist agents use it to find peers for cross-domain collaboration.
+You can verify the registrations in Kibana Dev Tools:
+
+```
+GET agent-registry/_search
+```
+
+The registry entries below are created automatically. They're documented here for reference and customisation.
 
 **Orchestrator:**
 | Field | Value |

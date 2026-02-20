@@ -77,6 +77,39 @@ tools:
   - name: IP Reputation Check
     workflow: workflows/security/enrichment/ip-reputation-check.yaml
     description: Check IP reputation via AbuseIPDB with geolocation
+  - name: Create Alert Note
+    workflow: workflows/security/detection/create-alert-note.yaml
+    description: Add investigation notes to an alert
+  - name: Create Investigation
+    workflow: workflows/investigation/create-investigation.yaml
+    description: Create a new investigation context for tracking work
+  - name: Get Investigation
+    workflow: workflows/investigation/get-investigation.yaml
+    description: Retrieve the current state of an investigation context
+  - name: Update Investigation Status
+    workflow: workflows/investigation/update-investigation-status.yaml
+    description: Progress or close an investigation
+  - name: Add Evidence
+    workflow: workflows/investigation/add-evidence.yaml
+    description: Add evidence or findings to an investigation context
+  - name: Propose Action
+    workflow: workflows/investigation/propose-action.yaml
+    description: Propose an action for governance review before executing
+  - name: Search Similar Investigations
+    workflow: workflows/investigation/search-similar-investigations.yaml
+    description: Find similar past investigations to learn from prior resolutions
+  - name: Record Incident Resolution
+    workflow: workflows/feedback/record-incident-resolution.yaml
+    description: Capture a resolved investigation as knowledge for future reference
+  - name: Check Action Policy
+    workflow: workflows/governance/check-action-policy.yaml
+    description: Check governance policy before executing actions
+  - name: Log Decision
+    workflow: workflows/governance/log-decision.yaml
+    description: Record a governance decision for audit trail
+  - name: Request Approval
+    workflow: workflows/governance/request-approval.yaml
+    description: Request human approval for Tier 2 actions via Elastic Cases
   - name: Agent Registry
     type: index_search
     index: agent-registry

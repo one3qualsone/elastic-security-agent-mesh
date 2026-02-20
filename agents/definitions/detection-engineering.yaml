@@ -107,6 +107,15 @@ tools:
   - name: Add Evidence
     workflow: workflows/investigation/add-evidence.yaml
     description: Add evidence or findings to an investigation context
+  - name: Get Investigation
+    workflow: workflows/investigation/get-investigation.yaml
+    description: Retrieve the current state of an investigation context
+  - name: Update Investigation Status
+    workflow: workflows/investigation/update-investigation-status.yaml
+    description: Progress or close an investigation
+  - name: Log Decision
+    workflow: workflows/governance/log-decision.yaml
+    description: Record a governance decision for audit trail
   - name: Semantic Knowledge Search
     workflow: workflows/search/semantic-knowledge-search.yaml
     description: Search knowledge bases using semantic search

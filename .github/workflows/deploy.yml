@@ -11,8 +11,11 @@ on:
           - full-setup
           - indices-only
           - workflows-only
+          - tools-only
+          - agents-only
           - seed-policies
           - delete-and-reimport
+          - delete-all-redeploy
           - validate
         default: full-setup
 
@@ -42,7 +45,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: pip install requests
+        run: pip install requests pyyaml
 
       - name: Validate environment
         run: python scripts/setup.py --validate
@@ -60,11 +63,20 @@ jobs:
             workflows-only)
               python scripts/setup.py --workflows-only
               ;;
+            tools-only)
+              python scripts/setup.py --tools-only
+              ;;
+            agents-only)
+              python scripts/setup.py --agents-only
+              ;;
             seed-policies)
               python scripts/setup.py --seed-policies
               ;;
             delete-and-reimport)
               python scripts/setup.py --delete-workflows
+              ;;
+            delete-all-redeploy)
+              python scripts/setup.py --delete-all
               ;;
           esac
 
@@ -80,8 +92,7 @@ jobs:
           echo "| **Space** | \`${KIBANA_SPACE:-default}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Inference** | \`${INFERENCE_ENDPOINT_ID:-.multilingual-e5-small-elasticsearch}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Post-Setup (Manual)" >> $GITHUB_STEP_SUMMARY
+          echo "### Post-Setup" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Create agents in Agent Builder using \`agents/definitions/\`" >> $GITHUB_STEP_SUMMARY
-          echo "2. Register each agent via the Register Agent workflow" >> $GITHUB_STEP_SUMMARY
-          echo "3. Seed knowledge bases with domain data" >> $GITHUB_STEP_SUMMARY
+          echo "1. Seed knowledge bases with domain data (kb-mitre-attack, kb-ecs-schema, kb-detection-rules)" >> $GITHUB_STEP_SUMMARY
+          echo "2. Verify agents in Agent Builder UI and assign LLM connector if needed" >> $GITHUB_STEP_SUMMARY
