@@ -841,42 +841,72 @@ def create_tools(workflow_name_to_id):
 
 
 def delete_tools():
-    """Delete all security-mesh tools from Agent Builder."""
+    """Delete all security-mesh tools from Agent Builder.
+
+    Uses a two-pass strategy:
+      1. Compute expected tool IDs from agent definitions and delete by ID.
+      2. List tools from the API and delete any remaining security-mesh.* tools.
+    """
     print("=== Deleting Security Mesh Tools ===\n")
 
     base_url = kibana_base_url()
     headers = kibana_headers()
 
-    resp = requests.get(f"{base_url}/api/agent_builder/tools", headers=headers, timeout=30)
-    if not resp.ok:
-        print(f"  [FAILED] Could not list tools: {resp.status_code}")
-        return
-
-    tools = resp.json()
-    if isinstance(tools, dict):
-        tools = tools.get("data", tools.get("items", []))
-
-    mesh_tools = [t for t in tools if t.get("id", "").startswith("security-mesh.")]
-    if not mesh_tools:
-        print("  No security-mesh tools found.\n")
-        return
+    agent_defs = load_agent_definitions()
+    expected_ids = set()
+    for agent_def in agent_defs:
+        for tool in agent_def.get("tools", []):
+            expected_ids.add(slugify(tool["name"]))
 
     deleted = 0
-    for tool in mesh_tools:
-        tool_id = tool.get("id", "")
+    errors = 0
+
+    print(f"  Pass 1: deleting {len(expected_ids)} known tool IDs...")
+    for tool_id in sorted(expected_ids):
         del_resp = requests.delete(
             f"{base_url}/api/agent_builder/tools/{tool_id}",
             headers=headers,
             timeout=15,
         )
         if del_resp.ok or del_resp.status_code == 204:
-            print(f"  [deleted] {tool_id}")
+            print(f"    [deleted] {tool_id}")
             deleted += 1
+        elif del_resp.status_code == 404:
+            pass
         else:
-            print(f"  [FAILED] {tool_id}: {del_resp.status_code}")
+            print(f"    [FAILED] {tool_id}: {del_resp.status_code} — {del_resp.text[:200]}")
+            errors += 1
         time.sleep(0.1)
 
-    print(f"\n  Deleted {deleted} tools\n")
+    print(f"\n  Pass 2: checking for any remaining security-mesh tools via API...")
+    resp = requests.get(f"{base_url}/api/agent_builder/tools", headers=headers, timeout=30)
+    if resp.ok:
+        body = resp.json()
+        tools_list = body if isinstance(body, list) else []
+        if isinstance(body, dict):
+            for key in ("data", "items", "tools", "results"):
+                if key in body and isinstance(body[key], list):
+                    tools_list = body[key]
+                    break
+        remaining = [
+            t for t in tools_list
+            if isinstance(t, dict) and t.get("id", "").startswith("security-mesh")
+        ]
+        for tool in remaining:
+            tool_id = tool.get("id", "")
+            del_resp = requests.delete(
+                f"{base_url}/api/agent_builder/tools/{tool_id}",
+                headers=headers,
+                timeout=15,
+            )
+            if del_resp.ok or del_resp.status_code == 204:
+                print(f"    [deleted] {tool_id}")
+                deleted += 1
+            time.sleep(0.1)
+    else:
+        print(f"    [WARN] Could not list tools: {resp.status_code}")
+
+    print(f"\n  Deleted {deleted} tools ({errors} errors)\n")
 
 
 def create_agents(tool_name_to_id):
@@ -966,46 +996,76 @@ def create_agents(tool_name_to_id):
 
 
 def delete_agents():
-    """Delete all security-mesh agents from Agent Builder."""
+    """Delete all security-mesh agents from Agent Builder.
+
+    Uses a two-pass strategy:
+      1. Compute expected agent IDs from definitions and delete by ID.
+         Also tries the hyphen variant (security-mesh-xxx) for legacy agents.
+      2. List agents from the API and delete any remaining security-mesh agents.
+    """
     print("=== Deleting Security Mesh Agents ===\n")
 
     base_url = kibana_base_url()
     headers = kibana_headers()
 
-    resp = requests.get(f"{base_url}/api/agent_builder/agents", headers=headers, timeout=30)
-    if not resp.ok:
-        print(f"  [FAILED] Could not list agents: {resp.status_code}")
-        return
-
-    agents = resp.json()
-    if isinstance(agents, dict):
-        agents = agents.get("data", agents.get("items", []))
-
-    mesh_agents = [
-        a for a in agents
-        if a.get("id", "").startswith("security-mesh.")
-        or a.get("id", "").startswith("security-mesh-")
-    ]
-    if not mesh_agents:
-        print("  No security-mesh agents found.\n")
-        return
+    agent_defs = load_agent_definitions()
+    expected_ids = set()
+    for agent_def in agent_defs:
+        dot_id = slugify(agent_def["agent_name"])
+        expected_ids.add(dot_id)
+        hyphen_id = dot_id.replace("security-mesh.", "security-mesh-", 1)
+        expected_ids.add(hyphen_id)
 
     deleted = 0
-    for agent in mesh_agents:
-        agent_id = agent.get("id", "")
+    errors = 0
+
+    print(f"  Pass 1: deleting {len(expected_ids)} known agent IDs (dot + hyphen variants)...")
+    for agent_id in sorted(expected_ids):
         del_resp = requests.delete(
             f"{base_url}/api/agent_builder/agents/{agent_id}",
             headers=headers,
             timeout=15,
         )
         if del_resp.ok or del_resp.status_code == 204:
-            print(f"  [deleted] {agent_id}")
+            print(f"    [deleted] {agent_id}")
             deleted += 1
+        elif del_resp.status_code == 404:
+            pass
         else:
-            print(f"  [FAILED] {agent_id}: {del_resp.status_code}")
+            print(f"    [FAILED] {agent_id}: {del_resp.status_code} — {del_resp.text[:200]}")
+            errors += 1
         time.sleep(0.1)
 
-    print(f"\n  Deleted {deleted} agents\n")
+    print(f"\n  Pass 2: checking for any remaining security-mesh agents via API...")
+    resp = requests.get(f"{base_url}/api/agent_builder/agents", headers=headers, timeout=30)
+    if resp.ok:
+        body = resp.json()
+        agents_list = body if isinstance(body, list) else []
+        if isinstance(body, dict):
+            for key in ("data", "items", "agents", "results"):
+                if key in body and isinstance(body[key], list):
+                    agents_list = body[key]
+                    break
+        remaining = [
+            a for a in agents_list
+            if isinstance(a, dict)
+            and (a.get("id", "").startswith("security-mesh.") or a.get("id", "").startswith("security-mesh-"))
+        ]
+        for agent in remaining:
+            agent_id = agent.get("id", "")
+            del_resp = requests.delete(
+                f"{base_url}/api/agent_builder/agents/{agent_id}",
+                headers=headers,
+                timeout=15,
+            )
+            if del_resp.ok or del_resp.status_code == 204:
+                print(f"    [deleted] {agent_id}")
+                deleted += 1
+            time.sleep(0.1)
+    else:
+        print(f"    [WARN] Could not list agents: {resp.status_code}")
+
+    print(f"\n  Deleted {deleted} agents ({errors} errors)\n")
 
 
 def register_agents_in_mesh(agent_name_to_builder_id):
