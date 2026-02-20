@@ -679,6 +679,35 @@ def load_agent_definitions():
     return definitions
 
 
+def _resolve_workflow_id(tool_name, tool_def, workflow_name_to_id):
+    """Resolve a workflow ID for a tool, trying multiple strategies.
+
+    1. Direct match: tool display name == workflow name
+    2. File-based: read the workflow YAML's name: field from the path in
+       the agent definition and look that up instead.
+    """
+    wf_id = workflow_name_to_id.get(tool_name)
+    if wf_id:
+        return wf_id
+
+    wf_path = tool_def.get("workflow", "")
+    if wf_path:
+        wf_file = REPO_ROOT / wf_path
+        if wf_file.exists():
+            try:
+                with open(wf_file) as f:
+                    wf_yaml = yaml.safe_load(f)
+                wf_name = wf_yaml.get("name", "")
+                if wf_name:
+                    wf_id = workflow_name_to_id.get(wf_name)
+                    if wf_id:
+                        return wf_id
+            except Exception:
+                pass
+
+    return None
+
+
 def create_tools(workflow_name_to_id):
     """Create all tools in Agent Builder via API.
 
@@ -722,7 +751,7 @@ def create_tools(workflow_name_to_id):
                 },
             }
         else:
-            wf_id = workflow_name_to_id.get(tool_name)
+            wf_id = _resolve_workflow_id(tool_name, tool_def, workflow_name_to_id)
             if not wf_id:
                 print(f"    [SKIP] {tool_name} — no matching workflow ID found")
                 failed += 1
