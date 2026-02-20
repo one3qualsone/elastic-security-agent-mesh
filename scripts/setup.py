@@ -733,6 +733,7 @@ def create_tools(workflow_name_to_id):
 
     tool_name_to_id = {}
     created = 0
+    updated = 0
     skipped = 0
     failed = 0
 
@@ -780,10 +781,21 @@ def create_tools(workflow_name_to_id):
             print(f"    [created] {tool_name} ({tool_id})")
             tool_name_to_id[tool_name] = tool_id
             created += 1
-        elif resp.status_code == 409:
-            print(f"    [exists]  {tool_name} ({tool_id})")
-            tool_name_to_id[tool_name] = tool_id
-            skipped += 1
+        elif resp.status_code in (400, 409) and "already exists" in resp.text:
+            put_resp = requests.put(
+                f"{base_url}/api/agent_builder/tools/{tool_id}",
+                headers=headers,
+                json={k: v for k, v in payload.items() if k not in ("id", "type")},
+                timeout=30,
+            )
+            if put_resp.ok:
+                print(f"    [updated] {tool_name} ({tool_id})")
+                tool_name_to_id[tool_name] = tool_id
+                updated += 1
+            else:
+                print(f"    [FAILED update] {tool_name}: {put_resp.status_code}")
+                print(f"              {put_resp.text[:500]}")
+                failed += 1
         else:
             print(f"    [FAILED]  {tool_name}: {resp.status_code}")
             print(f"              {resp.text[:500]}")
@@ -791,7 +803,7 @@ def create_tools(workflow_name_to_id):
 
         time.sleep(0.2)
 
-    print(f"\n  Total: {created} created, {skipped} existing, {failed} failed\n")
+    print(f"\n  Total: {created} created, {updated} updated, {skipped} existing, {failed} failed\n")
     return tool_name_to_id
 
 
@@ -849,6 +861,7 @@ def create_agents(tool_name_to_id):
 
     agent_name_to_id = {}
     created = 0
+    updated = 0
     skipped = 0
     failed = 0
 
@@ -885,17 +898,29 @@ def create_agents(tool_name_to_id):
             print(f"    [created] {agent_name} ({returned_id}) — {len(tool_ids)} tools")
             agent_name_to_id[agent_name] = returned_id
             created += 1
-        elif resp.status_code == 409:
-            print(f"    [exists]  {agent_name} ({agent_id})")
-            agent_name_to_id[agent_name] = agent_id
-            skipped += 1
+        elif resp.status_code in (400, 409) and "already exists" in resp.text:
+            put_resp = requests.put(
+                f"{base_url}/api/agent_builder/agents/{agent_id}",
+                headers=headers,
+                json={k: v for k, v in payload.items() if k != "id"},
+                timeout=30,
+            )
+            if put_resp.ok:
+                print(f"    [updated] {agent_name} ({agent_id}) — {len(tool_ids)} tools")
+                agent_name_to_id[agent_name] = agent_id
+                updated += 1
+            else:
+                print(f"    [FAILED update] {agent_name}: {put_resp.status_code}")
+                print(f"              {put_resp.text[:500]}")
+                failed += 1
         else:
-            print(f"    [FAILED]  {agent_name}: {resp.status_code} — {resp.text[:200]}")
+            print(f"    [FAILED]  {agent_name}: {resp.status_code}")
+            print(f"              {resp.text[:500]}")
             failed += 1
 
         time.sleep(0.3)
 
-    print(f"\n  Total: {created} created, {skipped} existing, {failed} failed\n")
+    print(f"\n  Total: {created} created, {updated} updated, {skipped} existing, {failed} failed\n")
     return agent_name_to_id
 
 
