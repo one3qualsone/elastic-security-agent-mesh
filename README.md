@@ -106,7 +106,15 @@ The setup requires environment variables for your Elastic deployment. You can pr
 | `VIRUSTOTAL_API_KEY` | Free tier: 4 lookups/min, 500/day |
 | `ABUSEIPDB_API_KEY` | Free tier: 1000 checks/day |
 
-### Deploy via GitHub Actions (Recommended)
+### Deployment Overview
+
+Deployment is a two-phase process. Phase 1 is fully automated and creates the infrastructure — indices, workflows, and initial agents. Phase 2 involves three manual steps in the Kibana UI (tools that can't be created via API), followed by a quick re-sync to attach those tools to agents automatically.
+
+> **Why two phases?** The `agent-registry` Index Search tool requires the `agent-registry` index to already exist — Elastic won't let you create an Index Search tool against a non-existent index. So we create the indices first, then the manual tools, then sync agents.
+
+### Phase 1: Automated Deploy
+
+#### GitHub Actions (Recommended)
 
 The easiest way to deploy — no local Python or dependencies required.
 
@@ -115,19 +123,16 @@ The easiest way to deploy — no local Python or dependencies required.
 2. **Add secrets** in your repo: Settings > Secrets and variables > Actions > New repository secret
    - Add `ELASTIC_CLOUD_URL`, `KIBANA_URL`, `ES_API_KEY`, `KIBANA_API_KEY`
    - Add `KIBANA_SPACE` and `INFERENCE_ENDPOINT_ID` if using non-defaults
-   - Add `VIRUSTOTAL_API_KEY` and `ABUSEIPDB_API_KEY` if you have it.  
+   - Add `VIRUSTOTAL_API_KEY` and `ABUSEIPDB_API_KEY` if you have them
 
 3. **Run the action**: Actions > "Deploy Security Agent Mesh" > Run workflow
-   - Choose `full-setup` for first deployment, or a specific step to re-run part of it
+   - Choose `full-setup` for first deployment
 
-The action validates your configuration, creates all indices, seeds governance policies, and imports every workflow into Kibana. A summary is posted to the workflow run when complete.
+This creates all indices, seeds governance policies, imports workflows, creates workflow tools, creates all 7 agents, and registers them in the mesh. Agents will deploy **without** the manual tools — that's expected. We attach those in Phase 2.
 
-### Deploy Locally (Alternative)
-
-If you prefer to run locally:
+#### Local Deploy (Alternative)
 
 ```bash
-# Set environment variables
 export ELASTIC_CLOUD_URL=https://your-deployment.es.region.gcp.cloud.es.io
 export KIBANA_URL=https://your-deployment.kb.region.gcp.cloud.es.io
 export ES_API_KEY=your-elasticsearch-api-key
@@ -135,39 +140,26 @@ export KIBANA_API_KEY=your-kibana-api-key
 export KIBANA_SPACE=your-space-id
 export INFERENCE_ENDPOINT_ID=.multilingual-e5-small-elasticsearch
 
-# Install dependencies and run
 pip install requests pyyaml
 python scripts/setup.py
-
-# Or run specific steps
-python scripts/setup.py --validate        # Check environment variables
-python scripts/setup.py --indices-only    # Only create Elasticsearch indices
-python scripts/setup.py --workflows-only  # Only import workflows into Kibana
-python scripts/setup.py --seed-policies   # Only seed governance action policies
-python scripts/setup.py --tools-only      # Only create tools in Agent Builder
-python scripts/setup.py --agents-only     # Only create agents in Agent Builder
-python scripts/setup.py --delete-all      # Delete everything and re-deploy from scratch
 ```
 
-### What the setup does
+#### What Phase 1 creates
 
-1. Creates the `agent-registry` index (semantic agent discovery)
-2. Creates the `investigation-contexts` index (shared investigation state)
-3. Creates the `action-policies` index (governance tier definitions)
-4. Creates all `kb-*` knowledge base indices
-5. Seeds default governance policies (Tier 0/1/2)
-6. Imports all workflow YAML files into Kibana
-7. Creates all tools in Agent Builder (workflow tools + index search tools)
-8. Creates all 7 agents in Agent Builder with system prompts and tool assignments
-9. Registers all agents in the `agent-registry` for semantic mesh discovery
+1. Elasticsearch indices: `agent-registry`, `investigation-contexts`, `action-policies`, all `kb-*` knowledge bases
+2. Default governance policies (Tier 0/1/2)
+3. All workflow YAML files imported into Kibana
+4. All workflow-based tools in Agent Builder
+5. All 7 agents with system prompts and workflow tool assignments
+6. Agent registry entries for semantic mesh discovery
 
-### Post-Setup
+### Phase 2: Manual Tools + Sync
 
-The setup script automatically creates all workflow tools, agents, and mesh registrations. Three manual steps remain — complete them in order, then re-run `agents-only` to sync everything.
+After Phase 1 completes, three tools require manual setup in the Kibana UI. Complete all three, then run the sync step to attach them to agents automatically.
 
-#### Step 1: Create the Agent Registry Tool
+#### Step 1: Create the Agent Registry Tool (Required)
 
-The Agent Builder API does not support creating `index_search` tools programmatically — this one tool must be created in the UI:
+The Agent Builder API does not support creating `index_search` tools — this must be done in the UI. **This tool is critical** — without it, the orchestrator cannot discover which agent to route requests to, and agents cannot find each other for cross-domain collaboration.
 
 1. Navigate to **Agent Builder > Tools > Create a new tool**
 2. Set **Type** to `Index Search`
@@ -177,19 +169,23 @@ The Agent Builder API does not support creating `index_search` tools programmati
 6. Add label `security-mesh`
 7. Save the tool
 
-You do **not** need to manually assign this tool to agents — the setup script handles that automatically (see Step 3).
+#### Step 2: Set Up Web Search via MCP (Optional but Recommended)
 
-#### Step 2: Assign LLM Connector
+Web search gives agents the ability to research current threats, regulatory updates, and technical documentation. This is provided via an MCP server you bring yourself. Without it, agents will still function but cannot access the web.
 
-The API cannot assign an LLM connector to agents (this is a Kibana UI setting). After setup:
+See the [Web Search Integration](#web-search-integration-mcp--optional-but-recommended) section below for full setup instructions.
+
+#### Step 3: Assign LLM Connector
+
+The API cannot assign an LLM connector to agents. For each agent:
 
 1. Navigate to **Agent Builder** in Kibana
 2. Open each agent (they'll be named `Security Mesh Orchestrator`, `Detection Engineering Agent`, etc.)
 3. In the agent settings, select your LLM connector (Claude Sonnet, GPT-4o, Gemini, etc.)
 
-#### Step 3: Sync Agent Tool Assignments
+#### Step 4: Sync Agents
 
-After creating the agent-registry tool (Step 1) and assigning connectors (Step 2), re-run the setup with `agents-only` to automatically attach the new tool to all 6 agents that need it:
+Re-run the setup with `agents-only` to automatically attach the agent-registry and MCP websearch tools to all agents that need them:
 
 ```bash
 # Via GitHub Actions: select "agents-only" from the workflow dispatch menu
@@ -198,7 +194,16 @@ After creating the agent-registry tool (Step 1) and assigning connectors (Step 2
 python scripts/setup.py --agents-only
 ```
 
-The script checks for each tool by ID — if `security-mesh.agent-registry` now exists, it will be attached to the Orchestrator, Detection Engineering, Security Analyst, Forensics, Compliance, and SOC Operations agents automatically. Threat Intelligence does not use the agent registry.
+The script checks for each tool by ID. If `security-mesh.agent-registry`, `websearch.web_search`, and `websearch.fetch_webpage` now exist, they'll be attached to the relevant agents automatically. Any tools that don't exist are skipped gracefully — agents still work, just without those capabilities.
+
+#### CLI Reference
+
+```bash
+python scripts/setup.py                  # Full setup (Phase 1)
+python scripts/setup.py --validate       # Check environment variables only
+python scripts/setup.py --agents-only    # Re-sync agents with current tools (Phase 2)
+python scripts/setup.py --delete-all     # Delete everything and re-deploy from scratch
+```
 
 #### Agents and Tools Reference
 
@@ -216,7 +221,7 @@ The setup script creates the following agents and tools from `agents/definitions
 
 For each agent, copy the `system_instructions` from the corresponding file in `agents/definitions/`. These contain the agent's persona, principles, and behavioural guidance.
 
-#### Step 3: Verify Mesh Registration
+#### Verify Mesh Registration
 
 The setup script automatically registers all agents in the `agent-registry` index. Every agent with the **Agent Registry** index search tool can discover other agents via semantic search — the orchestrator uses it for routing, and specialist agents use it to find peers for cross-domain collaboration.
 
@@ -298,7 +303,7 @@ The registry entries below are created automatically. They're documented here fo
 | description | Manages SOC team operations — shift schedules, on-call rotas, escalation procedures, and incident coordination logistics. Can update knowledge bases with rota changes and new procedures. |
 | keywords | SOC, operations, rota, on-call, schedule, escalation, runbook, incident management, team, shift |
 
-#### Step 4: Seed Knowledge Bases
+#### Seed Knowledge Bases
 
 Populate the knowledge base indices with domain-specific data. Use the **Add Knowledge Document** workflow or bulk-index documents directly.
 
@@ -318,9 +323,11 @@ Populate the knowledge base indices with domain-specific data. Use the **Add Kno
 
 Each document should include a `semantic_summary` field (used for semantic search) and a `category` field for filtering.
 
-### Web Search Integration (MCP — Required)
+### Web Search Integration (MCP — Optional but Recommended)
 
-Web search is provided via an **MCP (Model Context Protocol) server** that you bring yourself. The mesh agents (Detection Engineering, Threat Intelligence, Compliance) reference two MCP tools that must be set up before they can search the web.
+Web search gives agents the ability to research current threats, regulations, and technical documentation in real time. It is provided via an **MCP (Model Context Protocol) server** that you bring yourself. Three agents reference web search tools: **Detection Engineering**, **Threat Intelligence**, and **Compliance**.
+
+Without web search, these agents still function using their workflow tools and knowledge bases — but they cannot access the web for current information.
 
 #### Setup
 
@@ -341,7 +348,7 @@ Web search is provided via an **MCP (Model Context Protocol) server** that you b
    | `websearch.web_search` | MCP | Search the web using your MCP server. Returns a grounded research summary with source URLs. Use for finding threat research, regulatory updates, technical documentation, or any public information. |
    | `websearch.fetch_webpage` | MCP | Fetch a web page and extract its readable text content. Use after `web_search` to read specific pages in full — articles, reports, documentation. Returns clean text with headings preserved. |
 
-4. **Assign to agents** — the setup script automatically references these tool IDs when creating agents. If the tools don't exist yet, they'll be skipped with a warning and can be assigned later.
+4. **Run `agents-only`** — the setup script automatically references these tool IDs when creating agents. After creating the tools, re-run the agent sync and they'll be attached to Detection Engineering, Threat Intelligence, and Compliance automatically.
 
 #### Example: Vertex AI Cloud Run
 

@@ -9,12 +9,7 @@ on:
         type: choice
         options:
           - full-setup
-          - indices-only
-          - workflows-only
-          - tools-only
           - agents-only
-          - seed-policies
-          - delete-and-reimport
           - delete-all-redeploy
           - validate
         default: full-setup
@@ -57,23 +52,8 @@ jobs:
             full-setup)
               python scripts/setup.py
               ;;
-            indices-only)
-              python scripts/setup.py --indices-only
-              ;;
-            workflows-only)
-              python scripts/setup.py --workflows-only
-              ;;
-            tools-only)
-              python scripts/setup.py --tools-only
-              ;;
             agents-only)
               python scripts/setup.py --agents-only
-              ;;
-            seed-policies)
-              python scripts/setup.py --seed-policies
-              ;;
-            delete-and-reimport)
-              python scripts/setup.py --delete-workflows
               ;;
             delete-all-redeploy)
               python scripts/setup.py --delete-all
@@ -92,7 +72,10 @@ jobs:
           echo "| **Space** | \`${KIBANA_SPACE:-default}\` |" >> $GITHUB_STEP_SUMMARY
           echo "| **Inference** | \`${INFERENCE_ENDPOINT_ID:-.multilingual-e5-small-elasticsearch}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Post-Setup" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps (Phase 2)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "1. Seed knowledge bases with domain data (kb-mitre-attack, kb-ecs-schema, kb-detection-rules)" >> $GITHUB_STEP_SUMMARY
-          echo "2. Verify agents in Agent Builder UI and assign LLM connector if needed" >> $GITHUB_STEP_SUMMARY
+          echo "1. Create \`security-mesh.agent-registry\` Index Search tool in Agent Builder UI" >> $GITHUB_STEP_SUMMARY
+          echo "2. Set up MCP web search tools (optional) — see README" >> $GITHUB_STEP_SUMMARY
+          echo "3. Assign LLM connector to each agent in Agent Builder UI" >> $GITHUB_STEP_SUMMARY
+          echo "4. Re-run with \`agents-only\` to sync manual tools to agents" >> $GITHUB_STEP_SUMMARY
+          echo "5. Seed knowledge bases (kb-mitre-attack, kb-ecs-schema, kb-detection-rules)" >> $GITHUB_STEP_SUMMARY
