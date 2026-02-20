@@ -741,13 +741,16 @@ def create_tools(workflow_name_to_id):
         tool_type = tool_def.get("type", "workflow")
 
         if tool_type == "index_search":
+            index_name = tool_def.get("index", "")
             payload = {
                 "id": tool_id,
                 "type": "index_search",
-                "description": tool_def.get("description", f"Search {tool_def.get('index', '')}"),
+                "name": tool_name,
+                "description": tool_def.get("description", f"Search {index_name}"),
                 "tags": ["security-mesh"],
                 "configuration": {
-                    "index_pattern": tool_def.get("index", ""),
+                    "index_pattern": index_name,
+                    "max_rows": 10,
                 },
             }
         else:
@@ -782,7 +785,8 @@ def create_tools(workflow_name_to_id):
             tool_name_to_id[tool_name] = tool_id
             skipped += 1
         else:
-            print(f"    [FAILED]  {tool_name}: {resp.status_code} — {resp.text[:200]}")
+            print(f"    [FAILED]  {tool_name}: {resp.status_code}")
+            print(f"              {resp.text[:500]}")
             failed += 1
 
         time.sleep(0.2)
