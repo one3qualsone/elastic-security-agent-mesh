@@ -1,0 +1,88 @@
+# =============================================================================
+# Workflow: Create Investigation
+# Category: investigation
+#
+# Creates a new investigation context document. Used when an alert triggers
+# triage, a user initiates an investigation, or an agent refers work to
+# another agent. Returns the investigation document ID for subsequent updates.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Create Investigation
+description: Create a new investigation context for multi-agent collaboration.
+enabled: true
+
+tags:
+  - agent-mesh
+  - investigation
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: title
+    type: string
+    description: "Brief title describing the investigation"
+    required: true
+  - name: trigger_type
+    type: string
+    description: "What initiated this investigation: alert, user_request, scheduled_hunt, agent_referral"
+    required: true
+  - name: trigger_ref
+    type: string
+    description: "Reference ID of the trigger (alert ID, request ID, etc.)"
+    required: false
+  - name: assigned_agent
+    type: string
+    description: "Agent ID of the initially assigned specialist"
+    required: false
+  - name: risk_tier
+    type: string
+    description: "Initial risk tier: tier_0, tier_1, tier_2"
+    default: "tier_0"
+  - name: tags
+    type: array
+    description: "Tags for categorising the investigation"
+    required: false
+
+consts:
+  index_name: "investigation-contexts"
+
+steps:
+
+  - name: generate_id
+    type: console
+    with:
+      message: "{{ 'now' | date: '%s%N' }}"
+
+  - name: create_context
+    type: elasticsearch.index
+    with:
+      index: "{{ consts.index_name }}"
+      document:
+        investigation_id: "inv-{{ steps.generate_id.output }}"
+        title: "{{ inputs.title }}"
+        trigger_type: "{{ inputs.trigger_type }}"
+        trigger_ref: "{{ inputs.trigger_ref | default: '' }}"
+        status: "open"
+        risk_tier: "{{ inputs.risk_tier }}"
+        assigned_agent: "{{ inputs.assigned_agent | default: '' }}"
+        summary: ""
+        semantic_summary: "{{ inputs.title }}"
+        evidence: []
+        actions_taken: []
+        pending_actions: []
+        tags: ${{ inputs.tags | default: '[]' }}
+        created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+        updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+
+  - name: confirm
+    type: console
+    with:
+      message: "Investigation created: {{ inputs.title }} (doc ID: {{ steps.create_context.output._id }})"
+
+outputs:
+  document_id:
+    value: "{{ steps.create_context.output._id }}"
+  investigation_id:
+    value: "inv-{{ steps.generate_id.output }}"

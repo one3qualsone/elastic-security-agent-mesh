@@ -1,0 +1,180 @@
+# =============================================================================
+# Workflow: Mesh-Aware Automated Triaging
+# Category: security/response
+#
+# Alert-triggered triage that bridges security alerts into the agent mesh.
+# Unlike ad-automated-triaging.yaml (which uses raw AI assistant calls),
+# this workflow:
+#   1. Creates an investigation context for state tracking
+#   2. Enriches via the Threat Intelligence agent
+#   3. Routes to the Security Analyst agent via Agent Builder
+#   4. Lets the analyst decide on escalation to Forensics or others
+#   5. Creates a case and logs everything for audit
+#
+# This is the primary entry point from alert -> agent mesh.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Mesh Automated Triaging
+description: Alert-triggered triage that creates an investigation and routes to the analyst agent mesh.
+enabled: true
+
+tags:
+  - agent-mesh
+  - triage
+  - response
+
+triggers:
+  - type: alert
+    enabled: true
+
+consts:
+  investigation_index: "investigation-contexts"
+  registry_index: "agent-registry"
+  alerts_index: ".alerts-security.alerts-default"
+
+steps:
+
+  - name: for_each_alert
+    type: foreach
+    foreach: event.alerts
+    steps:
+
+      # Create an investigation context to track this triage
+      - name: create_investigation
+        type: elasticsearch.index
+        with:
+          index: "{{ consts.investigation_index }}"
+          document:
+            investigation_id: "inv-{{ foreach.item._id }}"
+            title: "Alert Triage: {{ foreach.item.kibana.alert.rule.name }}"
+            trigger_type: "alert"
+            trigger_ref: "{{ foreach.item._id }}"
+            status: "open"
+            risk_tier: "tier_0"
+            assigned_agent: ""
+            summary: ""
+            semantic_summary: "Alert triage for {{ foreach.item.kibana.alert.rule.name }}. {{ foreach.item.kibana.alert.rule.description }}"
+            evidence: []
+            actions_taken: []
+            pending_actions: []
+            tags:
+              - alert-triage
+              - automated
+            created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+            updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+
+      - name: log_investigation_created
+        type: console
+        with:
+          message: "Investigation created for alert {{ foreach.item._id }}: {{ foreach.item.kibana.alert.rule.name }}"
+
+      # Get alert details for context
+      - name: get_alert_details
+        type: elasticsearch.search
+        with:
+          index: "{{ consts.alerts_index }}"
+          size: 1
+          query:
+            match:
+              _id: "{{ foreach.item._id }}"
+
+      # Find the Security Analyst agent in the registry
+      - name: find_analyst_agent
+        type: elasticsearch.search
+        with:
+          index: "{{ consts.registry_index }}"
+          size: 1
+          query:
+            bool:
+              must:
+                - term:
+                    status: "active"
+                - term:
+                    domain: "triage"
+
+      # Route to analyst agent if found
+      - name: check_analyst_found
+        type: if
+        condition: steps.find_analyst_agent.output.hits.total.value > 0
+        steps:
+
+          - name: update_assignment
+            type: elasticsearch.request
+            with:
+              method: POST
+              path: "/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              body:
+                doc:
+                  assigned_agent: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
+                  status: "investigating"
+                  updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+
+          - name: invoke_analyst
+            type: kibana.post_agent_builder_converse
+            with:
+              agent_id: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
+              input: |
+                Triage this security alert. Investigation document ID: {{ steps.create_investigation.output._id }}
+
+                Alert Rule: {{ foreach.item.kibana.alert.rule.name }}
+                Alert ID: {{ foreach.item._id }}
+                Severity: {{ foreach.item.kibana.alert.severity }}
+                Risk Score: {{ foreach.item.kibana.alert.risk_score }}
+
+                Alert details:
+                {{ foreach.item | json }}
+
+                Instructions:
+                1. Analyse the alert and determine if it is a true positive or false positive
+                2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents)
+                3. Add your findings as evidence to investigation {{ steps.create_investigation.output._id }}
+                4. If true positive: tag the alert, create a case, and escalate to forensics if needed
+                5. If false positive: tag the alert, close it, and document why
+            timeout: 600s
+
+          - name: log_analyst_response
+            type: console
+            with:
+              message: "Analyst agent response: {{ steps.invoke_analyst.output.response.message }}"
+
+          # Add the analyst's response as evidence
+          - name: record_analyst_evidence
+            type: elasticsearch.request
+            with:
+              method: POST
+              path: "/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              body:
+                script:
+                  source: |
+                    if (ctx._source.evidence == null) { ctx._source.evidence = []; }
+                    ctx._source.evidence.add(params.entry);
+                    ctx._source.updated_at = params.now;
+                  params:
+                    entry:
+                      agent_id: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
+                      timestamp: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+                      evidence_type: "finding"
+                      content: "{{ steps.invoke_analyst.output.response.message }}"
+                      confidence: 0.8
+                      references:
+                        - "{{ foreach.item._id }}"
+                    now: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+
+        else:
+
+          - name: no_analyst_available
+            type: console
+            with:
+              message: "No analyst agent found in registry. Alert {{ foreach.item._id }} requires manual triage."
+
+          - name: update_status_manual
+            type: elasticsearch.request
+            with:
+              method: POST
+              path: "/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              body:
+                doc:
+                  status: "escalated"
+                  summary: "No analyst agent available — requires manual triage"
+                  updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"

@@ -1,0 +1,81 @@
+# =============================================================================
+# Workflow: Add Evidence to Investigation
+# Category: investigation
+#
+# Appends an evidence entry to an existing investigation context. Used by
+# any agent to record findings, enrichment results, or recommendations
+# as part of the investigation chain.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Add Evidence to Investigation
+description: Append an evidence entry to an existing investigation context.
+enabled: true
+
+tags:
+  - agent-mesh
+  - investigation
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: document_id
+    type: string
+    description: "Elasticsearch document ID of the investigation context"
+    required: true
+  - name: agent_id
+    type: string
+    description: "ID of the agent adding evidence"
+    required: true
+  - name: evidence_type
+    type: string
+    description: "Type of evidence: enrichment, finding, recommendation, action_taken"
+    required: true
+  - name: content
+    type: string
+    description: "Evidence content — what was found or recommended"
+    required: true
+  - name: confidence
+    type: number
+    description: "Confidence score between 0.0 and 1.0"
+    default: 0.5
+  - name: references
+    type: array
+    description: "Reference IDs (alert IDs, document IDs, IOCs, etc.)"
+    required: false
+
+consts:
+  index_name: "investigation-contexts"
+
+steps:
+
+  - name: append_evidence
+    type: elasticsearch.request
+    with:
+      method: POST
+      path: "/{{ consts.index_name }}/_update/{{ inputs.document_id }}"
+      body:
+        script:
+          source: |
+            if (ctx._source.evidence == null) { ctx._source.evidence = []; }
+            ctx._source.evidence.add(params.entry);
+            ctx._source.updated_at = params.now;
+          params:
+            entry:
+              agent_id: "{{ inputs.agent_id }}"
+              timestamp: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+              evidence_type: "{{ inputs.evidence_type }}"
+              content: "{{ inputs.content }}"
+              confidence: "{{ inputs.confidence }}"
+              references: ${{ inputs.references | default: '[]' }}
+            now: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+
+  - name: confirm
+    type: console
+    with:
+      message: "Evidence added to investigation {{ inputs.document_id }} by agent {{ inputs.agent_id }}"
+
+outputs:
+  status:
+    value: "{{ steps.append_evidence.output.result }}"

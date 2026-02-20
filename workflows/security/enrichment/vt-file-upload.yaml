@@ -1,0 +1,60 @@
+# =============================================================================
+# Workflow: VirusTotal — Upload File for Scanning
+# Category: security/enrichment
+#
+# Submits a file URL to VirusTotal for scanning by 70+ antivirus engines
+# and dynamic analysis sandboxes. Returns a scan ID that can be used to
+# retrieve the analysis report once processing completes.
+#
+# Note: This uses the URL-based upload endpoint. For direct file uploads,
+# use the Kibana-side file handling to get a URL first.
+#
+# Free tier: 4 requests/min, 500 requests/day
+# API docs: https://docs.virustotal.com/reference/files-scan
+# =============================================================================
+
+name: "VirusTotal — Upload File for Scanning"
+description: "Submit a file to VirusTotal for analysis by 70+ antivirus engines"
+
+triggers:
+  - type: manual
+
+consts:
+  vt_api_key: YOUR-VT-API-KEY
+
+inputs:
+  - name: file_url
+    type: string
+    description: "URL of the file to submit for scanning"
+    required: true
+
+steps:
+  - name: submit_file
+    type: http
+    with:
+      url: "https://www.virustotal.com/api/v3/files"
+      method: POST
+      headers:
+        x-apikey: "{{ consts.vt_api_key }}"
+        Content-Type: application/x-www-form-urlencoded
+      body:
+        url: "{{ inputs.file_url }}"
+      timeout: 60s
+    on-failure:
+      retry:
+        max-attempts: 2
+        delay: 5s
+      continue: true
+
+  - name: format_result
+    type: console
+    with:
+      message: |
+        === VirusTotal File Submission ===
+        Submitted: {{ inputs.file_url }}
+        
+        Analysis ID: {{ steps.submit_file.output.data.data.id }}
+        Type: {{ steps.submit_file.output.data.data.type }}
+        
+        The file has been queued for analysis. Use the analysis ID to retrieve
+        the report once processing completes (typically 1-5 minutes).

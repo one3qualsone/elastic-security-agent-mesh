@@ -1,0 +1,78 @@
+# =============================================================================
+# Workflow: Register Agent
+# Category: setup
+#
+# Registers a specialist agent in the agent-registry index so the
+# orchestrator can discover and route requests to it. Run this after
+# creating an agent in Agent Builder.
+#
+# Author: Security Agent Mesh
+# Created: 2026-02-19
+# =============================================================================
+name: Register Agent
+description: Register a specialist agent in the agent-registry for mesh discovery.
+enabled: true
+
+tags:
+  - agent-mesh
+  - setup
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: agent_id
+    type: string
+    description: "The Agent Builder agent ID (from Kibana)"
+    required: true
+  - name: agent_name
+    type: string
+    description: "Human-readable agent name"
+    required: true
+  - name: domain
+    type: string
+    description: "Primary domain keyword (e.g., detection_engineering, compliance, threat_intel, forensics, soc_ops, triage)"
+    required: true
+  - name: capabilities
+    type: array
+    description: "List of capability keywords this agent provides"
+    required: true
+  - name: description
+    type: string
+    description: "Natural language description of what this agent does — used for semantic routing"
+    required: true
+  - name: keywords
+    type: array
+    description: "Search keywords for this agent"
+    required: true
+
+consts:
+  registry_index: "agent-registry"
+
+steps:
+
+  - name: register
+    type: elasticsearch.index
+    with:
+      index: "{{ consts.registry_index }}"
+      document:
+        agent_id: "{{ inputs.agent_id }}"
+        agent_name: "{{ inputs.agent_name }}"
+        domain: "{{ inputs.domain }}"
+        capabilities: ${{ inputs.capabilities }}
+        description: "{{ inputs.description }}"
+        semantic_description: "{{ inputs.agent_name }}. {{ inputs.description }}"
+        keywords: ${{ inputs.keywords }}
+        status: "active"
+        version: "1.0"
+        created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+        updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+
+  - name: confirm
+    type: console
+    with:
+      message: "Registered {{ inputs.agent_name }} ({{ inputs.agent_id }}) in domain: {{ inputs.domain }}"
+
+outputs:
+  registry_document_id:
+    value: "{{ steps.register.output._id }}"

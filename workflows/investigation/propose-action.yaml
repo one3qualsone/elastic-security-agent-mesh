@@ -1,0 +1,81 @@
+# =============================================================================
+# Workflow: Propose Action
+# Category: investigation
+#
+# Adds a pending action to an investigation context. Used by agents that
+# want to take a high-risk action (Tier 1/2) — the action is recorded as
+# a proposal and must be approved before execution.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Propose Action
+description: Propose a high-risk action for governance review within an investigation.
+enabled: true
+
+tags:
+  - agent-mesh
+  - investigation
+  - governance
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: document_id
+    type: string
+    description: "Elasticsearch document ID of the investigation context"
+    required: true
+  - name: recommending_agent
+    type: string
+    description: "Agent ID proposing the action"
+    required: true
+  - name: action_type
+    type: string
+    description: "Type of action proposed (e.g., isolate_host, enable_rule_production)"
+    required: true
+  - name: risk_tier
+    type: string
+    description: "Risk tier of this action: tier_1, tier_2"
+    required: true
+  - name: justification
+    type: string
+    description: "Why this action should be taken — references evidence"
+    required: true
+  - name: evidence_refs
+    type: array
+    description: "References to evidence entries supporting this proposal"
+    required: false
+
+consts:
+  index_name: "investigation-contexts"
+
+steps:
+
+  - name: add_proposal
+    type: elasticsearch.request
+    with:
+      method: POST
+      path: "/{{ consts.index_name }}/_update/{{ inputs.document_id }}"
+      body:
+        script:
+          source: |
+            if (ctx._source.pending_actions == null) { ctx._source.pending_actions = []; }
+            ctx._source.pending_actions.add(params.proposal);
+            ctx._source.updated_at = params.now;
+          params:
+            proposal:
+              recommending_agent: "{{ inputs.recommending_agent }}"
+              action_type: "{{ inputs.action_type }}"
+              risk_tier: "{{ inputs.risk_tier }}"
+              justification: "{{ inputs.justification }}"
+              evidence_refs: ${{ inputs.evidence_refs | default: '[]' }}
+            now: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+
+  - name: confirm
+    type: console
+    with:
+      message: "Action proposed: {{ inputs.action_type }} ({{ inputs.risk_tier }}) by {{ inputs.recommending_agent }}"
+
+outputs:
+  status:
+    value: "{{ steps.add_proposal.output.result }}"

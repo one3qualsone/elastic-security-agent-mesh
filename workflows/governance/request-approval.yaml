@@ -1,0 +1,90 @@
+# =============================================================================
+# Workflow: Request Approval
+# Category: governance
+#
+# Creates an Elastic Case when a Tier 2 action needs human authorisation.
+# The case includes the action details, justification, risk tier, and a
+# link to the investigation context. Humans review and approve/deny
+# directly in Kibana — no external tools required.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Request Approval
+description: Create an Elastic Case for a Tier 2 governance-gated action requiring human approval.
+enabled: true
+
+tags:
+  - agent-mesh
+  - governance
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: action_type
+    type: string
+    description: "The action requiring approval (e.g., isolate_host)"
+    required: true
+  - name: recommending_agent
+    type: string
+    description: "Agent ID that recommended this action"
+    required: true
+  - name: justification
+    type: string
+    description: "Why this action should be taken"
+    required: true
+  - name: risk_tier
+    type: string
+    description: "Risk tier of the action"
+    required: true
+  - name: investigation_id
+    type: string
+    description: "Related investigation context document ID"
+    required: false
+  - name: target
+    type: string
+    description: "What the action targets (host ID, rule ID, etc.)"
+    required: true
+
+steps:
+
+  - name: create_approval_case
+    type: kibana.cases
+    with:
+      action: create
+      title: "Approval Required: {{ inputs.action_type }} — {{ inputs.target }}"
+      description: |
+        ## Tier 2 Action — Human Approval Required
+
+        | Field | Value |
+        |-------|-------|
+        | **Action** | {{ inputs.action_type }} |
+        | **Target** | {{ inputs.target }} |
+        | **Risk Tier** | {{ inputs.risk_tier }} |
+        | **Recommended by** | {{ inputs.recommending_agent }} |
+        | **Investigation** | {{ inputs.investigation_id | default: 'N/A' }} |
+
+        ### Justification
+
+        {{ inputs.justification }}
+
+        ---
+
+        **To approve:** Add a comment with `APPROVED` and close the case.
+        **To deny:** Add a comment with `DENIED` and the reason, then close the case.
+      tags:
+        - governance
+        - tier-2-approval
+        - "{{ inputs.action_type }}"
+      severity: "high"
+
+  - name: confirm
+    type: console
+    with:
+      message: "Approval case created for {{ inputs.action_type }} targeting {{ inputs.target }} — case ID: {{ steps.create_approval_case.output.id }}"
+
+outputs:
+  case_id:
+    value: "{{ steps.create_approval_case.output.id }}"
+  request_sent:
+    value: "true"

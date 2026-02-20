@@ -1,0 +1,84 @@
+name: Deploy Security Agent Mesh
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "What to deploy"
+        required: true
+        type: choice
+        options:
+          - full-setup
+          - indices-only
+          - workflows-only
+          - seed-policies
+          - validate
+        default: full-setup
+
+env:
+  ELASTIC_CLOUD_URL: ${{ secrets.ELASTIC_CLOUD_URL }}
+  KIBANA_URL: ${{ secrets.KIBANA_URL }}
+  ES_API_KEY: ${{ secrets.ES_API_KEY }}
+  KIBANA_API_KEY: ${{ secrets.KIBANA_API_KEY }}
+  KIBANA_SPACE: ${{ secrets.KIBANA_SPACE }}
+  INFERENCE_ENDPOINT_ID: ${{ secrets.INFERENCE_ENDPOINT_ID }}
+  LLM_CONNECTOR_ID: ${{ secrets.LLM_CONNECTOR_ID }}
+  VIRUSTOTAL_API_KEY: ${{ secrets.VIRUSTOTAL_API_KEY }}
+  ABUSEIPDB_API_KEY: ${{ secrets.ABUSEIPDB_API_KEY }}
+
+
+jobs:
+  deploy:
+    name: Deploy to Elastic Cloud
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Validate environment
+        run: python scripts/setup.py --validate
+
+      - name: Run setup
+        if: inputs.action != 'validate'
+        run: |
+          case "${{ inputs.action }}" in
+            full-setup)
+              python scripts/setup.py
+              ;;
+            indices-only)
+              python scripts/setup.py --indices-only
+              ;;
+            workflows-only)
+              python scripts/setup.py --workflows-only
+              ;;
+            seed-policies)
+              python scripts/setup.py --seed-policies
+              ;;
+          esac
+
+      - name: Print summary
+        if: always()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Setting | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **Action** | \`${{ inputs.action }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target** | \`${KIBANA_URL}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Space** | \`${KIBANA_SPACE:-default}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Inference** | \`${INFERENCE_ENDPOINT_ID:-.multilingual-e5-small-elasticsearch}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Post-Setup (Manual)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "1. Create agents in Agent Builder using \`agents/definitions/\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Register each agent via the Register Agent workflow" >> $GITHUB_STEP_SUMMARY
+          echo "3. Seed knowledge bases with domain data" >> $GITHUB_STEP_SUMMARY

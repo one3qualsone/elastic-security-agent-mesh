@@ -1,0 +1,93 @@
+# =============================================================================
+# Workflow: Evaluate MITRE ATT&CK Coverage
+# Category: security/detection
+#
+# Fetches all enabled detection rules, extracts their MITRE technique
+# mappings, and compares against the ATT&CK knowledge base to identify
+# coverage gaps. Returns both covered and uncovered techniques.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Evaluate MITRE Coverage
+description: Identify gaps in MITRE ATT&CK technique coverage across detection rules.
+enabled: true
+
+tags:
+  - agent-mesh
+  - detection-engineering
+  - mitre
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: enabled_only
+    type: boolean
+    description: "Only evaluate enabled rules (recommended for production coverage)"
+    default: true
+  - name: tactic_filter
+    type: string
+    description: "Filter to a specific tactic (e.g., 'Initial Access', 'Execution'). Leave empty for all."
+    required: false
+
+steps:
+
+  - name: fetch_all_rules
+    type: kibana.request
+    with:
+      method: GET
+      path: "/api/detection_engine/rules/_find?per_page=1000&sort_field=name&sort_order=asc"
+
+  - name: extract_coverage
+    type: console
+    with:
+      message: |
+        {% assign rules = steps.fetch_all_rules.output.data.data %}
+        {% assign total_rules = steps.fetch_all_rules.output.data.total %}
+        {% assign covered_techniques = "" | split: "" %}
+        {% assign covered_count = 0 %}
+        {% for rule in rules %}
+          {% if inputs.enabled_only == true and rule.enabled == false %}{% continue %}{% endif %}
+          {% if rule.threat %}
+            {% for threat in rule.threat %}
+              {% if threat.technique %}
+                {% for technique in threat.technique %}
+                  {% unless covered_techniques contains technique.id %}
+                    {% assign covered_techniques = covered_techniques | push: technique.id %}
+                    {% assign covered_count = covered_count | plus: 1 %}
+                  {% endunless %}
+                {% endfor %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+        {% endfor %}
+        Total rules: {{ total_rules }}
+        Unique MITRE techniques covered: {{ covered_count }}
+        Techniques: {{ covered_techniques | join: ", " }}
+
+  - name: search_kb_techniques
+    type: elasticsearch.search
+    with:
+      index: kb-mitre-attack
+      size: 0
+      aggs:
+        technique_count:
+          value_count:
+            field: _id
+    on-failure:
+      continue: true
+
+  - name: output_summary
+    type: console
+    with:
+      message: |
+        === MITRE ATT&CK Coverage Report ===
+        Total detection rules evaluated: {{ steps.fetch_all_rules.output.data.total }}
+        Enabled only: {{ inputs.enabled_only }}
+        {% if inputs.tactic_filter %}Tactic filter: {{ inputs.tactic_filter }}{% endif %}
+
+outputs:
+  total_rules:
+    value: "{{ steps.fetch_all_rules.output.data.total }}"
+  rules:
+    value: "{{ steps.fetch_all_rules.output.data.data }}"

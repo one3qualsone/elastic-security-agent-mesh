@@ -1,0 +1,113 @@
+# =============================================================================
+# Workflow: Create Detection Rule
+# Category: security/detection
+#
+# Creates a new detection rule via the Kibana Detection Engine API.
+# Rules are created DISABLED by default (Tier 1 governance) — enabling
+# in production requires separate approval via enable-disable-rule.yaml.
+#
+# Supports ES|QL, KQL (custom query), threshold, EQL, and new terms types.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Create Detection Rule
+description: Create a new detection rule (disabled by default for governance review).
+enabled: true
+
+tags:
+  - agent-mesh
+  - detection-engineering
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: name
+    type: string
+    description: "Rule name"
+    required: true
+  - name: description
+    type: string
+    description: "Rule description including detection logic and MITRE mapping"
+    required: true
+  - name: rule_type
+    type: string
+    description: "Rule type: esql, query, threshold, eql, new_terms"
+    default: "esql"
+  - name: query
+    type: string
+    description: "The detection query (ES|QL, KQL, or EQL depending on type)"
+    required: true
+  - name: language
+    type: string
+    description: "Query language: esql, kuery, or eql"
+    default: "esql"
+  - name: index_patterns
+    type: array
+    description: "Index patterns to query (e.g., ['logs-*'])"
+    default: ["logs-*"]
+  - name: severity
+    type: string
+    description: "Rule severity: low, medium, high, critical"
+    default: "medium"
+  - name: risk_score
+    type: integer
+    description: "Risk score (0-100)"
+    default: 50
+  - name: tags
+    type: array
+    description: "Rule tags for categorisation"
+    required: false
+  - name: threat
+    type: array
+    description: "MITRE ATT&CK threat mapping array"
+    required: false
+  - name: interval
+    type: string
+    description: "Rule run interval"
+    default: "5m"
+  - name: from
+    type: string
+    description: "Lookback period"
+    default: "now-6m"
+
+steps:
+
+  - name: create_rule
+    type: kibana.request
+    with:
+      method: POST
+      path: /api/detection_engine/rules
+      body:
+        name: "{{ inputs.name }}"
+        description: "{{ inputs.description }}"
+        type: "{{ inputs.rule_type }}"
+        query: "{{ inputs.query }}"
+        language: "{{ inputs.language }}"
+        index: ${{ inputs.index_patterns }}
+        severity: "{{ inputs.severity }}"
+        risk_score: "{{ inputs.risk_score }}"
+        tags: ${{ inputs.tags | default: '["auto-generated"]' }}
+        threat: ${{ inputs.threat | default: '[]' }}
+        interval: "{{ inputs.interval }}"
+        from: "{{ inputs.from }}"
+        enabled: false
+
+  - name: confirm
+    type: console
+    with:
+      message: |
+        Rule created (DISABLED):
+        Name: {{ steps.create_rule.output.data.name }}
+        ID: {{ steps.create_rule.output.data.rule_id }}
+        Type: {{ steps.create_rule.output.data.type }}
+        Severity: {{ steps.create_rule.output.data.severity }}
+        Note: Rule is disabled by default. Use enable-disable-rule workflow to activate after review.
+
+outputs:
+  rule_id:
+    value: "{{ steps.create_rule.output.data.rule_id }}"
+  id:
+    value: "{{ steps.create_rule.output.data.id }}"
+  rule:
+    value: "{{ steps.create_rule.output.data }}"

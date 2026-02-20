@@ -1,0 +1,86 @@
+# =============================================================================
+# Workflow: Log Decision
+# Category: governance
+#
+# Records a machine-readable decision record in the investigation context.
+# Every action (approved, denied, or auto-approved) should be logged for
+# audit trail, replay, and scoring.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Log Decision
+description: Record an action decision in the investigation context for audit.
+enabled: true
+
+tags:
+  - agent-mesh
+  - governance
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: document_id
+    type: string
+    description: "Investigation context document ID"
+    required: true
+  - name: agent_id
+    type: string
+    description: "Agent that performed or requested the action"
+    required: true
+  - name: action_type
+    type: string
+    description: "Type of action taken"
+    required: true
+  - name: target
+    type: string
+    description: "What the action targeted"
+    required: true
+  - name: approved_by
+    type: string
+    description: "Who approved: 'auto' for Tier 0, agent_id for Tier 1, human identifier for Tier 2"
+    required: true
+  - name: result
+    type: string
+    description: "Outcome of the action (success, failed, denied, pending)"
+    required: true
+  - name: risk_tier
+    type: string
+    description: "Risk tier of the action"
+    required: true
+
+consts:
+  index_name: "investigation-contexts"
+
+steps:
+
+  - name: log_action
+    type: elasticsearch.request
+    with:
+      method: POST
+      path: "/{{ consts.index_name }}/_update/{{ inputs.document_id }}"
+      body:
+        script:
+          source: |
+            if (ctx._source.actions_taken == null) { ctx._source.actions_taken = []; }
+            ctx._source.actions_taken.add(params.record);
+            ctx._source.updated_at = params.now;
+          params:
+            record:
+              agent_id: "{{ inputs.agent_id }}"
+              action_type: "{{ inputs.action_type }}"
+              target: "{{ inputs.target }}"
+              timestamp: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+              approved_by: "{{ inputs.approved_by }}"
+              result: "{{ inputs.result }}"
+              risk_tier: "{{ inputs.risk_tier }}"
+            now: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+
+  - name: confirm
+    type: console
+    with:
+      message: "Decision logged: {{ inputs.action_type }} on {{ inputs.target }} — {{ inputs.result }} (approved by {{ inputs.approved_by }})"
+
+outputs:
+  status:
+    value: "{{ steps.log_action.output.result }}"

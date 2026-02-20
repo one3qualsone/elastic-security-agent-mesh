@@ -1,0 +1,87 @@
+# =============================================================================
+# Workflow: Update Investigation Status
+# Category: investigation
+#
+# Updates the status, summary, assigned agent, or risk tier of an
+# investigation context. Used when escalating, resolving, or reassigning.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Update Investigation Status
+description: Update the status or assignment of an investigation context.
+enabled: true
+
+tags:
+  - agent-mesh
+  - investigation
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: document_id
+    type: string
+    description: "Elasticsearch document ID of the investigation context"
+    required: true
+  - name: status
+    type: string
+    description: "New status: open, investigating, escalated, resolved, closed"
+    required: false
+  - name: summary
+    type: string
+    description: "Updated investigation summary"
+    required: false
+  - name: assigned_agent
+    type: string
+    description: "New assigned agent ID"
+    required: false
+  - name: risk_tier
+    type: string
+    description: "Updated risk tier: tier_0, tier_1, tier_2"
+    required: false
+
+consts:
+  index_name: "investigation-contexts"
+
+steps:
+
+  - name: build_update
+    type: console
+    with:
+      message: |
+        {% assign doc = "" | split: "" %}
+        {% assign updates = '{"updated_at": "' | append: 'now' | date: '%Y-%m-%dT%H:%M:%SZ' | append: '"}' %}
+        Updating investigation {{ inputs.document_id }}
+
+  - name: update_context
+    type: elasticsearch.request
+    with:
+      method: POST
+      path: "/{{ consts.index_name }}/_update/{{ inputs.document_id }}"
+      body:
+        script:
+          source: |
+            ctx._source.updated_at = params.now;
+            if (params.status != null && params.status != '') { ctx._source.status = params.status; }
+            if (params.summary != null && params.summary != '') {
+              ctx._source.summary = params.summary;
+              ctx._source.semantic_summary = params.summary;
+            }
+            if (params.assigned_agent != null && params.assigned_agent != '') { ctx._source.assigned_agent = params.assigned_agent; }
+            if (params.risk_tier != null && params.risk_tier != '') { ctx._source.risk_tier = params.risk_tier; }
+            if (params.status == 'resolved' || params.status == 'closed') { ctx._source.resolved_at = params.now; }
+          params:
+            now: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+            status: "{{ inputs.status | default: '' }}"
+            summary: "{{ inputs.summary | default: '' }}"
+            assigned_agent: "{{ inputs.assigned_agent | default: '' }}"
+            risk_tier: "{{ inputs.risk_tier | default: '' }}"
+
+  - name: confirm
+    type: console
+    with:
+      message: "Investigation {{ inputs.document_id }} updated."
+
+outputs:
+  status:
+    value: "{{ steps.update_context.output.result }}"

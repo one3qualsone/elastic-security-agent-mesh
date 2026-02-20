@@ -1,0 +1,115 @@
+# =============================================================================
+# Workflow: Flag Noisy Rules
+# Category: feedback
+#
+# Scheduled workflow that identifies detection rules with high alert volume
+# or high false positive rates. Creates knowledge documents that the
+# Detection Engineering agent can review and act on.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Flag Noisy Rules
+description: Identify noisy detection rules with high alert volume or FP rates.
+enabled: true
+
+tags:
+  - agent-mesh
+  - feedback
+  - detection-engineering
+
+triggers:
+  - type: scheduled
+    with:
+      every: "24h"
+
+inputs:
+  - name: lookback_days
+    type: integer
+    description: "Number of days to analyse"
+    default: 7
+  - name: alert_threshold
+    type: integer
+    description: "Flag rules generating more than this many alerts per day"
+    default: 50
+
+consts:
+  alerts_index: ".alerts-security.alerts-default"
+  kb_index: "kb-detection-rules"
+
+steps:
+
+  - name: find_high_volume_rules
+    type: elasticsearch.search
+    with:
+      index: "{{ consts.alerts_index }}"
+      size: 0
+      query:
+        range:
+          "@timestamp":
+            gte: "now-{{ inputs.lookback_days }}d"
+      aggs:
+        by_rule:
+          terms:
+            field: "kibana.alert.rule.name"
+            size: 100
+            order:
+              _count: desc
+
+  - name: find_fp_heavy_rules
+    type: elasticsearch.search
+    with:
+      index: "{{ consts.alerts_index }}"
+      size: 0
+      query:
+        bool:
+          must:
+            - range:
+                "@timestamp":
+                  gte: "now-{{ inputs.lookback_days }}d"
+            - term:
+                kibana.alert.workflow_tags: "false-positive"
+      aggs:
+        by_rule:
+          terms:
+            field: "kibana.alert.rule.name"
+            size: 100
+            order:
+              _count: desc
+    on-failure:
+      continue: true
+
+  - name: write_noisy_rules_report
+    type: elasticsearch.index
+    with:
+      index: "{{ consts.kb_index }}"
+      document:
+        title: "Noisy Rules Report — {{ 'now' | date: '%Y-%m-%d' }}"
+        content: |
+          Automated noise analysis for the last {{ inputs.lookback_days }} days.
+          Rules generating the most alerts (top 10 by volume) should be reviewed for tuning opportunities.
+          Rules with the most false-positive tags should be prioritised for query refinement or suppression.
+        semantic_summary: "Noisy detection rules report identifying high volume and high false positive rate rules that need tuning"
+        category: "feedback"
+        source: "flag-noisy-rules"
+        tags:
+          - feedback
+          - noisy-rules
+          - tuning
+          - automated
+        created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+        updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+        expires_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' | plus: 604800 }}"
+        metadata:
+          lookback_days: "{{ inputs.lookback_days }}"
+          alert_threshold: "{{ inputs.alert_threshold }}"
+          high_volume_rules: ${{ steps.find_high_volume_rules.output.aggregations.by_rule.buckets }}
+          fp_heavy_rules: ${{ steps.find_fp_heavy_rules.output.aggregations.by_rule.buckets }}
+
+  - name: confirm
+    type: console
+    with:
+      message: "Noisy rules report written to {{ consts.kb_index }}"
+
+outputs:
+  report_doc_id:
+    value: "{{ steps.write_noisy_rules_report.output._id }}"

@@ -1,0 +1,95 @@
+# =============================================================================
+# Workflow: Create Action Policies Index
+# Category: setup
+#
+# Creates the action-policies index that stores governance tier definitions.
+# Each document defines the risk tier, approval requirements, and blast-radius
+# limits for a specific action type.
+#
+# Run once during initial mesh setup, then seed with default policies.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Create Action Policies Index
+description: Create the action-policies index for governance tier definitions.
+enabled: true
+
+tags:
+  - agent-mesh
+  - setup
+  - infrastructure
+  - governance
+
+triggers:
+  - type: manual
+
+consts:
+  index_name: "action-policies"
+
+steps:
+
+  - name: check_index_exists
+    type: elasticsearch.request
+    with:
+      method: HEAD
+      path: "/{{ consts.index_name }}"
+    on-failure:
+      continue: true
+
+  - name: create_or_skip
+    type: if
+    condition: 'steps.check_index_exists.status: "success"'
+    steps:
+
+      - name: already_exists
+        type: console
+        with:
+          message: "Index {{ consts.index_name }} already exists. Skipping creation."
+
+    else:
+
+      - name: create_index
+        type: elasticsearch.request
+        with:
+          method: PUT
+          path: "/{{ consts.index_name }}"
+          body:
+            settings:
+              number_of_shards: 1
+              number_of_replicas: 1
+            mappings:
+              properties:
+                action_type:
+                  type: keyword
+                risk_tier:
+                  type: keyword
+                allowed_callers:
+                  type: keyword
+                auto_approve:
+                  type: object
+                  properties:
+                    min_confidence:
+                      type: float
+                    max_blast_radius:
+                      type: integer
+                    required_evidence_count:
+                      type: integer
+                requires_approval:
+                  type: boolean
+                approval_channel:
+                  type: keyword
+                rollback_workflow:
+                  type: keyword
+                ttl_minutes:
+                  type: integer
+                description:
+                  type: text
+
+      - name: confirm_creation
+        type: console
+        with:
+          message: "Action policies index created. Seed with default policies using the setup script."
+
+outputs:
+  index_name:
+    value: "{{ consts.index_name }}"

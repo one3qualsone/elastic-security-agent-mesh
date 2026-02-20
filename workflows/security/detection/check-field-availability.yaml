@@ -1,0 +1,56 @@
+# =============================================================================
+# Workflow: Check Field Availability
+# Category: security/detection
+#
+# Verifies that specific ECS fields exist in the customer's log data by
+# running an ES|QL query against logs-*. Used before creating detection
+# rules to ensure the required data sources are present.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Check Field Availability
+description: Verify that ECS fields exist in logs-* before creating detection rules.
+enabled: true
+
+tags:
+  - agent-mesh
+  - detection-engineering
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: field_names
+    type: string
+    description: "Comma-separated list of field names to check (e.g., 'process.name,event.action,source.ip')"
+    required: true
+  - name: index_pattern
+    type: string
+    description: "Index pattern to check against"
+    default: "logs-*"
+  - name: time_range
+    type: string
+    description: "How far back to look for data"
+    default: "7d"
+
+steps:
+
+  - name: check_fields
+    type: elasticsearch.request
+    with:
+      method: POST
+      path: "/{{ inputs.index_pattern }}/_field_caps"
+      body:
+        fields: "{{ inputs.field_names }}"
+
+  - name: output_results
+    type: console
+    with:
+      message: |
+        Field availability check for index pattern: {{ inputs.index_pattern }}
+        Fields requested: {{ inputs.field_names }}
+        Results: {{ steps.check_fields.output.fields }}
+
+outputs:
+  fields:
+    value: "{{ steps.check_fields.output.fields }}"

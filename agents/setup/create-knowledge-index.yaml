@@ -1,0 +1,116 @@
+# =============================================================================
+# Workflow: Create Knowledge Base Index
+# Category: setup
+#
+# Creates a new knowledge base index with the standard mapping used by the
+# security agent mesh. Includes a semantic_text field backed by an inference
+# endpoint (multilingual-e5-small or a configured embedding model) for
+# semantic search.
+#
+# This workflow is mesh-specific — it creates indices with our opinionated
+# mapping schema. Run once per knowledge base index during initial setup.
+#
+# PREREQUISITES:
+#   - An inference endpoint must be configured in Elasticsearch. Deploy
+#     multilingual-e5-small from Machine Learning > Trained Models in Kibana.
+#     The endpoint ID defaults to ".multilingual-e5-small-elasticsearch" but
+#     can be overridden via the inference_endpoint_id input.
+#
+# Author: Security Agent Mesh
+# Created: 2026-02-19
+# =============================================================================
+name: Create Knowledge Base Index
+description: Create an Elasticsearch index with semantic search support for the agent mesh.
+enabled: true
+
+tags:
+  - agent-mesh
+  - setup
+  - infrastructure
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: index_name
+    type: string
+    description: "Name for the new knowledge base index (e.g., kb-detection-rules, kb-compliance)"
+    required: true
+  - name: inference_endpoint_id
+    type: string
+    description: "Inference endpoint ID for semantic_text (e.g., .multilingual-e5-small-elasticsearch)"
+    default: ".multilingual-e5-small-elasticsearch"
+  - name: number_of_shards
+    type: integer
+    description: Number of primary shards
+    default: 1
+  - name: number_of_replicas
+    type: integer
+    description: Number of replica shards
+    default: 1
+
+steps:
+
+  # Check if the index already exists to avoid overwriting
+  - name: check_index_exists
+    type: elasticsearch.request
+    with:
+      method: HEAD
+      path: "/{{ inputs.index_name }}"
+    on-failure:
+      continue: true
+
+  - name: create_or_skip
+    type: if
+    condition: 'steps.check_index_exists.status: "success"'
+    steps:
+
+      - name: already_exists
+        type: console
+        with:
+          message: "Index {{ inputs.index_name }} already exists. Skipping creation."
+
+    else:
+
+      - name: create_index
+        type: elasticsearch.request
+        with:
+          method: PUT
+          path: "/{{ inputs.index_name }}"
+          body:
+            settings:
+              number_of_shards: "{{ inputs.number_of_shards }}"
+              number_of_replicas: "{{ inputs.number_of_replicas }}"
+            mappings:
+              properties:
+                title:
+                  type: text
+                content:
+                  type: text
+                semantic_summary:
+                  type: semantic_text
+                  inference_id: "{{ inputs.inference_endpoint_id }}"
+                category:
+                  type: keyword
+                source:
+                  type: keyword
+                tags:
+                  type: keyword
+                created_at:
+                  type: date
+                updated_at:
+                  type: date
+                expires_at:
+                  type: date
+                metadata:
+                  type: object
+                  dynamic: true
+
+      - name: confirm_creation
+        type: console
+        with:
+          message: "Index {{ inputs.index_name }} created with semantic_text field using inference endpoint: {{ inputs.inference_endpoint_id }}"
+
+outputs:
+  index_name:
+    value: "{{ inputs.index_name }}"

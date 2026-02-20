@@ -30,6 +30,10 @@ description: Search for similar knowledge using semantic search with optional na
 # Reference inputs in steps using {{ inputs.input_name }} syntax
 # ---------------------------------------------------------------------------
 inputs:
+  - name: index_name
+    type: string
+    description: "Knowledge base index to search (e.g., kb-detection-rules, kb-compliance, kb-threat-intel)"
+    required: true
   - name: query_text
     type: string
     description: Description of the knowledge you're looking for in natural semantic language.
@@ -66,8 +70,7 @@ inputs:
 #   - Environment-specific configuration
 #   - Values that may need to change across environments
 # ---------------------------------------------------------------------------
-consts:
-  index_name: "knowledge_base"
+consts: {}
 
 
 # ---------------------------------------------------------------------------
@@ -156,7 +159,7 @@ steps:
   - name: search_knowledge
     type: elasticsearch.search
     with:
-      index: "{{ consts.index_name }}"
+      index: "{{ inputs.index_name }}"
       size: 5
       query:
         bool:

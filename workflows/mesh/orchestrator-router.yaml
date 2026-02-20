@@ -1,0 +1,94 @@
+# =============================================================================
+# Workflow: Orchestrator Router
+# Category: ai-agents
+#
+# The main entry point for the security agent mesh. Receives a user request,
+# classifies it using the LLM to determine the domain, searches the agent
+# registry for the best specialist, and invokes that agent with the original
+# request.
+#
+# This workflow enables "ask the mesh anything" — users don't need to know
+# which specialist agent to talk to.
+#
+# Author: Security Agent Mesh
+# Created: 2026-02-19
+# =============================================================================
+name: Orchestrator Router
+description: Routes user requests to the best specialist agent in the security mesh.
+enabled: true
+
+tags:
+  - agent-mesh
+  - orchestrator
+  - routing
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: request
+    type: string
+    description: The user's natural language request
+    required: true
+
+consts:
+  registry_index: "agent-registry"
+
+steps:
+
+  # Use semantic search on the registry to find the best agent.
+  # The agent descriptions in the registry are written to match the kinds
+  # of questions each specialist handles.
+  - name: find_agent
+    type: elasticsearch.search
+    with:
+      index: "{{ consts.registry_index }}"
+      size: 1
+      query:
+        bool:
+          must:
+            - term:
+                status: "active"
+          should:
+            - semantic:
+                field: semantic_description
+                query: "{{ inputs.request }}"
+          minimum_should_match: 1
+
+  - name: check_agent_found
+    type: if
+    condition: steps.find_agent.output.hits.total.value > 0
+    steps:
+
+      - name: log_routing_decision
+        type: console
+        with:
+          message: |
+            Routing to: {{ steps.find_agent.output.hits.hits[0]._source.agent_name }}
+            Domain: {{ steps.find_agent.output.hits.hits[0]._source.domain }}
+            Score: {{ steps.find_agent.output.hits.hits[0]._score }}
+
+      - name: invoke_specialist
+        type: kibana.post_agent_builder_converse
+        with:
+          agent_id: "{{ steps.find_agent.output.hits.hits[0]._source.agent_id }}"
+          input: "{{ inputs.request }}"
+        timeout: 600s
+
+      - name: output_response
+        type: console
+        with:
+          message: "{{ steps.invoke_specialist.output.response.message }}"
+
+    else:
+
+      - name: no_agent_found
+        type: console
+        with:
+          message: "No specialist agent matched this request. Please try rephrasing or specify which agent you need."
+
+outputs:
+  response:
+    value: "{{ steps.invoke_specialist.output.response.message }}"
+  routed_to:
+    value: "{{ steps.find_agent.output.hits.hits[0]._source.agent_name }}"

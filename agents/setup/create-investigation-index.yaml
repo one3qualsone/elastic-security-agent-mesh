@@ -1,0 +1,150 @@
+# =============================================================================
+# Workflow: Create Investigation Contexts Index
+# Category: setup
+#
+# Creates the investigation-contexts index used to track shared state across
+# multi-agent investigations. Each investigation has an evidence chain,
+# action log, and pending action queue for governance.
+#
+# Run once during initial mesh setup.
+#
+# PREREQUISITES:
+#   - An inference endpoint must be configured (same as knowledge bases).
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Create Investigation Contexts Index
+description: Create the investigation-contexts index for multi-agent investigation state tracking.
+enabled: true
+
+tags:
+  - agent-mesh
+  - setup
+  - infrastructure
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: inference_endpoint_id
+    type: string
+    description: "Inference endpoint ID for semantic_text (e.g., .multilingual-e5-small-elasticsearch)"
+    default: ".multilingual-e5-small-elasticsearch"
+
+consts:
+  index_name: "investigation-contexts"
+
+steps:
+
+  - name: check_index_exists
+    type: elasticsearch.request
+    with:
+      method: HEAD
+      path: "/{{ consts.index_name }}"
+    on-failure:
+      continue: true
+
+  - name: create_or_skip
+    type: if
+    condition: 'steps.check_index_exists.status: "success"'
+    steps:
+
+      - name: already_exists
+        type: console
+        with:
+          message: "Index {{ consts.index_name }} already exists. Skipping creation."
+
+    else:
+
+      - name: create_index
+        type: elasticsearch.request
+        with:
+          method: PUT
+          path: "/{{ consts.index_name }}"
+          body:
+            settings:
+              number_of_shards: 1
+              number_of_replicas: 1
+            mappings:
+              properties:
+                investigation_id:
+                  type: keyword
+                trigger_type:
+                  type: keyword
+                trigger_ref:
+                  type: keyword
+                status:
+                  type: keyword
+                risk_tier:
+                  type: keyword
+                assigned_agent:
+                  type: keyword
+                title:
+                  type: text
+                summary:
+                  type: text
+                semantic_summary:
+                  type: semantic_text
+                  inference_id: "{{ inputs.inference_endpoint_id }}"
+                evidence:
+                  type: nested
+                  properties:
+                    agent_id:
+                      type: keyword
+                    timestamp:
+                      type: date
+                    evidence_type:
+                      type: keyword
+                    content:
+                      type: text
+                    confidence:
+                      type: float
+                    references:
+                      type: keyword
+                actions_taken:
+                  type: nested
+                  properties:
+                    agent_id:
+                      type: keyword
+                    action_type:
+                      type: keyword
+                    target:
+                      type: text
+                    timestamp:
+                      type: date
+                    approved_by:
+                      type: keyword
+                    result:
+                      type: text
+                    risk_tier:
+                      type: keyword
+                pending_actions:
+                  type: nested
+                  properties:
+                    recommending_agent:
+                      type: keyword
+                    action_type:
+                      type: keyword
+                    risk_tier:
+                      type: keyword
+                    justification:
+                      type: text
+                    evidence_refs:
+                      type: keyword
+                created_at:
+                  type: date
+                updated_at:
+                  type: date
+                resolved_at:
+                  type: date
+                tags:
+                  type: keyword
+
+      - name: confirm_creation
+        type: console
+        with:
+          message: "Investigation contexts index created with semantic search and nested evidence tracking."
+
+outputs:
+  index_name:
+    value: "{{ consts.index_name }}"

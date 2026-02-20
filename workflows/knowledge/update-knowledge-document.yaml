@@ -1,0 +1,59 @@
+# =============================================================================
+# Workflow: Update Knowledge Document
+# Category: knowledge
+#
+# Updates an existing document in any Elasticsearch index by ID. Takes the
+# index name, document ID, and a partial document body. Uses the ES Update
+# API so only the provided fields are changed — existing fields are
+# preserved.
+#
+# This is a generic building block with no opinions on index mapping.
+#
+# Author: Elastic
+# Created: 2026-02-19
+# =============================================================================
+name: Update Knowledge Document
+description: Update an existing document in any Elasticsearch index by ID (partial update).
+enabled: true
+
+tags:
+  - data
+  - knowledge
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: index_name
+    type: string
+    description: Elasticsearch index containing the document
+    required: true
+  - name: document_id
+    type: string
+    description: The document ID to update
+    required: true
+  - name: document
+    type: object
+    description: Partial document body — only the fields provided will be updated
+    required: true
+
+steps:
+
+  - name: update_document
+    type: elasticsearch.request
+    with:
+      method: POST
+      path: "/{{ inputs.index_name }}/_update/{{ inputs.document_id }}"
+      body:
+        doc: ${{ inputs.document }}
+
+  - name: confirm
+    type: console
+    with:
+      message: "Document {{ inputs.document_id }} updated in {{ inputs.index_name }} (result: {{ steps.update_document.output.result }})"
+
+outputs:
+  document_id:
+    value: "{{ inputs.document_id }}"
+  result:
+    value: "{{ steps.update_document.output.result }}"

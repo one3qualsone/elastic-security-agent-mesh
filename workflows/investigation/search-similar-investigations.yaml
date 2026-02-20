@@ -1,0 +1,94 @@
+# =============================================================================
+# Workflow: Search Similar Investigations
+# Category: investigation
+#
+# Performs a semantic search on past investigation contexts to find similar
+# incidents. Useful for learning from past resolutions and identifying
+# recurring attack patterns.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Search Similar Investigations
+description: Search for similar past investigations using semantic search.
+enabled: true
+
+tags:
+  - agent-mesh
+  - investigation
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: query_text
+    type: string
+    description: "Natural language description of the investigation to search for"
+    required: true
+  - name: status_filter
+    type: string
+    description: "Filter by investigation status (e.g., resolved, closed). Leave empty for all."
+    required: false
+  - name: max_results
+    type: integer
+    description: "Maximum number of results to return"
+    default: 5
+
+consts:
+  index_name: "investigation-contexts"
+
+steps:
+
+  - name: build_query
+    type: console
+    with:
+      message: "Searching for investigations similar to: {{ inputs.query_text }}"
+
+  - name: search_with_filter
+    type: if
+    condition: inputs.status_filter
+    steps:
+
+      - name: filtered_search
+        type: elasticsearch.search
+        with:
+          index: "{{ consts.index_name }}"
+          size: "{{ inputs.max_results }}"
+          query:
+            bool:
+              must:
+                - term:
+                    status: "{{ inputs.status_filter }}"
+              should:
+                - semantic:
+                    field: semantic_summary
+                    query: "{{ inputs.query_text }}"
+              minimum_should_match: 1
+
+    else:
+
+      - name: unfiltered_search
+        type: elasticsearch.search
+        with:
+          index: "{{ consts.index_name }}"
+          size: "{{ inputs.max_results }}"
+          query:
+            bool:
+              should:
+                - semantic:
+                    field: semantic_summary
+                    query: "{{ inputs.query_text }}"
+              minimum_should_match: 1
+
+  - name: output_results
+    type: console
+    with:
+      message: |
+        {% if inputs.status_filter %}
+        Found {{ steps.filtered_search.output.hits.total.value }} similar investigations (filtered by {{ inputs.status_filter }})
+        {% else %}
+        Found {{ steps.unfiltered_search.output.hits.total.value }} similar investigations
+        {% endif %}
+
+outputs:
+  results:
+    value: "{% if inputs.status_filter %}{{ steps.filtered_search.output.hits.hits }}{% else %}{{ steps.unfiltered_search.output.hits.hits }}{% endif %}"

@@ -1,0 +1,69 @@
+# =============================================================================
+# Workflow: Remove Knowledge Document
+# Category: knowledge
+#
+# Deletes a document from any Elasticsearch index by ID. Checks that the
+# document exists before attempting deletion and reports the outcome.
+#
+# This is a generic building block with no opinions on index mapping.
+#
+# Author: Elastic
+# Created: 2026-02-19
+# =============================================================================
+name: Remove Knowledge Document
+description: Delete a document from any Elasticsearch index by ID.
+enabled: true
+
+tags:
+  - data
+  - knowledge
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: index_name
+    type: string
+    description: Elasticsearch index containing the document
+    required: true
+  - name: document_id
+    type: string
+    description: The document ID to delete
+    required: true
+
+steps:
+
+  - name: get_document
+    type: elasticsearch.request
+    with:
+      method: GET
+      path: "/{{ inputs.index_name }}/_doc/{{ inputs.document_id }}"
+    on-failure:
+      continue: true
+
+  - name: check_exists
+    type: if
+    condition: 'steps.get_document.status: "success"'
+    steps:
+
+      - name: delete_document
+        type: elasticsearch.request
+        with:
+          method: DELETE
+          path: "/{{ inputs.index_name }}/_doc/{{ inputs.document_id }}"
+
+      - name: confirm
+        type: console
+        with:
+          message: "Document {{ inputs.document_id }} removed from {{ inputs.index_name }}"
+
+    else:
+
+      - name: not_found
+        type: console
+        with:
+          message: "Document {{ inputs.document_id }} not found in {{ inputs.index_name }}"
+
+outputs:
+  result:
+    value: "{{ steps.delete_document.output.result | default: 'not_found' }}"

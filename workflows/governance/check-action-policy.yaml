@@ -1,0 +1,104 @@
+# =============================================================================
+# Workflow: Check Action Policy
+# Category: governance
+#
+# Looks up the governance policy for a given action type. Returns the risk
+# tier, whether approval is required, and the auto-approve conditions.
+# Agents call this before executing any action to determine whether they
+# can proceed autonomously or need to request approval.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Check Action Policy
+description: Look up the governance policy for an action type before execution.
+enabled: true
+
+tags:
+  - agent-mesh
+  - governance
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: action_type
+    type: string
+    description: "The action to check (e.g., isolate_host, create_rule, tag_alert)"
+    required: true
+  - name: agent_id
+    type: string
+    description: "The agent requesting the action"
+    required: true
+  - name: confidence
+    type: number
+    description: "Confidence score of the agent's assessment (0.0 to 1.0)"
+    default: 0.5
+  - name: blast_radius
+    type: integer
+    description: "Number of entities affected by this action"
+    default: 1
+
+consts:
+  index_name: "action-policies"
+
+steps:
+
+  - name: lookup_policy
+    type: elasticsearch.search
+    with:
+      index: "{{ consts.index_name }}"
+      size: 1
+      query:
+        term:
+          action_type: "{{ inputs.action_type }}"
+
+  - name: evaluate_policy
+    type: if
+    condition: steps.lookup_policy.output.hits.total.value > 0
+    steps:
+
+      - name: policy_found
+        type: console
+        with:
+          message: |
+            Policy for {{ inputs.action_type }}:
+            Risk Tier: {{ steps.lookup_policy.output.hits.hits[0]._source.risk_tier }}
+            Requires Approval: {{ steps.lookup_policy.output.hits.hits[0]._source.requires_approval }}
+
+      - name: check_tier
+        type: if
+        condition: 'steps.lookup_policy.output.hits.hits[0]._source.risk_tier: "tier_0"'
+        steps:
+          - name: auto_approve
+            type: console
+            with:
+              message: "DECISION: approved — tier_0 action, no approval needed"
+        else:
+          - name: check_approval_required
+            type: if
+            condition: steps.lookup_policy.output.hits.hits[0]._source.requires_approval == true
+            steps:
+              - name: needs_approval
+                type: console
+                with:
+                  message: "DECISION: approval_required — {{ inputs.action_type }} requires explicit approval via {{ steps.lookup_policy.output.hits.hits[0]._source.approval_channel }}"
+            else:
+              - name: guarded_approve
+                type: console
+                with:
+                  message: "DECISION: guarded_approved — tier_1 action, auto-approve conditions apply"
+
+    else:
+
+      - name: no_policy
+        type: console
+        with:
+          message: "DECISION: denied — no policy found for action type {{ inputs.action_type }}. Action not permitted."
+
+outputs:
+  risk_tier:
+    value: "{{ steps.lookup_policy.output.hits.hits[0]._source.risk_tier }}"
+  requires_approval:
+    value: "{{ steps.lookup_policy.output.hits.hits[0]._source.requires_approval }}"
+  policy:
+    value: "{{ steps.lookup_policy.output.hits.hits[0]._source }}"

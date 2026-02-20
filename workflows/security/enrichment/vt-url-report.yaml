@@ -1,0 +1,65 @@
+# =============================================================================
+# Workflow: VirusTotal — URL Analysis Report
+# Category: security/enrichment
+#
+# Retrieves the analysis report for a URL from VirusTotal. Returns threat
+# reputation, detection results from 70+ engines/blocklists, and contextual
+# data about the URL including redirects, final destination, and categories.
+#
+# The URL must be base64url-encoded (without padding) for the API. This
+# workflow handles the encoding automatically via Liquid filters.
+#
+# Free tier: 4 requests/min, 500 requests/day
+# API docs: https://docs.virustotal.com/reference/url-info
+# =============================================================================
+
+name: "VirusTotal — URL Analysis Report"
+description: "Get a VirusTotal analysis report for a URL"
+
+triggers:
+  - type: manual
+
+consts:
+  vt_api_key: YOUR-VT-API-KEY
+
+inputs:
+  - name: url
+    type: string
+    description: "URL to get the report for (e.g., https://example.com)"
+    required: true
+
+steps:
+  - name: lookup_url
+    type: http
+    with:
+      url: "https://www.virustotal.com/api/v3/urls/{{ inputs.url | base64_encode | replace: '=', '' | replace: '+', '-' | replace: '/', '_' }}"
+      method: GET
+      headers:
+        x-apikey: "{{ consts.vt_api_key }}"
+        Accept: application/json
+      timeout: 30s
+    on-failure:
+      retry:
+        max-attempts: 2
+        delay: 5s
+      continue: true
+
+  - name: format_report
+    type: console
+    with:
+      message: |
+        === VirusTotal URL Report ===
+        URL: {{ inputs.url }}
+        
+        Detection: {{ steps.lookup_url.output.data.data.attributes.last_analysis_stats.malicious }}/{{ steps.lookup_url.output.data.data.attributes.last_analysis_stats.malicious | plus: steps.lookup_url.output.data.data.attributes.last_analysis_stats.undetected }} engines flagged as malicious
+        Reputation: {{ steps.lookup_url.output.data.data.attributes.reputation }}
+        Last analysed: {{ steps.lookup_url.output.data.data.attributes.last_analysis_date }}
+        Categories: {{ steps.lookup_url.output.data.data.attributes.categories | map: "value" | join: ", " }}
+        
+        {% if steps.lookup_url.output.data.data.attributes.last_analysis_stats.malicious > 3 %}
+        VERDICT: MALICIOUS — multiple engines flag this URL
+        {% elsif steps.lookup_url.output.data.data.attributes.last_analysis_stats.malicious > 0 %}
+        VERDICT: SUSPICIOUS — some engines flag this URL
+        {% else %}
+        VERDICT: CLEAN — no engines flag this URL
+        {% endif %}

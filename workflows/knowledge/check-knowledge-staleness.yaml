@@ -1,0 +1,82 @@
+# =============================================================================
+# Workflow: Check Knowledge Staleness
+# Category: knowledge
+#
+# Searches an Elasticsearch index for documents where a specified date field
+# is older than now — i.e. documents that have expired or need review.
+#
+# The date field name is an input, so this works with any index that has a
+# date field used for expiry or review tracking. No mapping assumptions.
+#
+# Author: Elastic
+# Created: 2026-02-19
+# =============================================================================
+name: Check Knowledge Staleness
+description: Find documents in an index where a date field is past due (expired or needing review).
+enabled: true
+
+tags:
+  - data
+  - knowledge
+  - scheduled
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: index_name
+    type: string
+    description: "Elasticsearch index (or pattern) to scan"
+    required: true
+  - name: date_field
+    type: string
+    description: "The date field to check for staleness (e.g., expires_at, review_by)"
+    required: true
+    default: "expires_at"
+  - name: max_results
+    type: integer
+    description: Maximum number of stale documents to return
+    default: 50
+
+steps:
+
+  - name: find_stale_documents
+    type: elasticsearch.search
+    with:
+      index: "{{ inputs.index_name }}"
+      size: "{{ inputs.max_results }}"
+      query:
+        range:
+          "{{ inputs.date_field }}":
+            lte: "now"
+
+  - name: check_results
+    type: if
+    condition: steps.find_stale_documents.output.hits.total.value > 0
+    steps:
+
+      - name: log_stale_documents
+        type: foreach
+        with:
+          items: "{{ steps.find_stale_documents.output.hits.hits }}"
+        steps:
+          - name: log_stale_doc
+            type: console
+            with:
+              message: "STALE: [{{ foreach.item._index }}] ID: {{ foreach.item._id }} | {{ inputs.date_field }}: {{ foreach.item._source[inputs.date_field] }}"
+
+      - name: summary
+        type: console
+        with:
+          message: "Found {{ steps.find_stale_documents.output.hits.total.value }} stale document(s) in {{ inputs.index_name }}"
+
+    else:
+
+      - name: all_current
+        type: console
+        with:
+          message: "No stale documents found in {{ inputs.index_name }} (checked field: {{ inputs.date_field }})"
+
+outputs:
+  stale_count:
+    value: "{{ steps.find_stale_documents.output.hits.total.value }}"

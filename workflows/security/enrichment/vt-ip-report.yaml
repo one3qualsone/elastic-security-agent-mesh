@@ -1,0 +1,65 @@
+# =============================================================================
+# Workflow: VirusTotal — IP Address Report
+# Category: security/enrichment
+#
+# Retrieves an IP address analysis report from VirusTotal including threat
+# reputation, detection results from 70+ engines/blocklists, ASN data,
+# geolocation, and associated relationships (domains, files, URLs).
+#
+# Free tier: 4 requests/min, 500 requests/day
+# API docs: https://docs.virustotal.com/reference/ip-info
+# =============================================================================
+
+name: "VirusTotal — IP Address Report"
+description: "Get a VirusTotal threat report for an IP address"
+
+triggers:
+  - type: manual
+
+consts:
+  vt_api_key: YOUR-VT-API-KEY
+
+inputs:
+  - name: ip_address
+    type: string
+    description: "IP address to look up (e.g., 8.8.8.8)"
+    required: true
+
+steps:
+  - name: lookup_ip
+    type: http
+    with:
+      url: "https://www.virustotal.com/api/v3/ip_addresses/{{ inputs.ip_address }}"
+      method: GET
+      headers:
+        x-apikey: "{{ consts.vt_api_key }}"
+        Accept: application/json
+      timeout: 30s
+    on-failure:
+      retry:
+        max-attempts: 2
+        delay: 5s
+      continue: true
+
+  - name: format_report
+    type: console
+    with:
+      message: |
+        === VirusTotal IP Report ===
+        IP: {{ inputs.ip_address }}
+        
+        Detection: {{ steps.lookup_ip.output.data.data.attributes.last_analysis_stats.malicious }}/{{ steps.lookup_ip.output.data.data.attributes.last_analysis_stats.malicious | plus: steps.lookup_ip.output.data.data.attributes.last_analysis_stats.undetected }} engines flagged as malicious
+        Reputation: {{ steps.lookup_ip.output.data.data.attributes.reputation }}
+        Country: {{ steps.lookup_ip.output.data.data.attributes.country }}
+        AS Owner: {{ steps.lookup_ip.output.data.data.attributes.as_owner }}
+        ASN: {{ steps.lookup_ip.output.data.data.attributes.asn }}
+        Network: {{ steps.lookup_ip.output.data.data.attributes.network }}
+        Last analysed: {{ steps.lookup_ip.output.data.data.attributes.last_analysis_date }}
+        
+        {% if steps.lookup_ip.output.data.data.attributes.last_analysis_stats.malicious > 3 %}
+        VERDICT: MALICIOUS — multiple engines flag this IP
+        {% elsif steps.lookup_ip.output.data.data.attributes.last_analysis_stats.malicious > 0 %}
+        VERDICT: SUSPICIOUS — some engines flag this IP
+        {% else %}
+        VERDICT: CLEAN — no engines flag this IP
+        {% endif %}

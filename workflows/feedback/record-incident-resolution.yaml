@@ -1,0 +1,107 @@
+# =============================================================================
+# Workflow: Record Incident Resolution
+# Category: feedback
+#
+# Captures the resolution of an investigation as a knowledge document in
+# kb-incidents. Future triage agents can search this knowledge base to
+# learn from past incident resolutions.
+#
+# Should be called when an investigation is closed, either manually or
+# by the analyst agent after resolving a case.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Record Incident Resolution
+description: Capture a resolved investigation as a knowledge document for future reference.
+enabled: true
+
+tags:
+  - agent-mesh
+  - feedback
+  - incidents
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: investigation_doc_id
+    type: string
+    description: "Document ID of the investigation context to summarise"
+    required: true
+  - name: resolution_summary
+    type: string
+    description: "Human- or agent-generated summary of how the incident was resolved"
+    required: true
+  - name: lessons_learned
+    type: string
+    description: "Key takeaways and lessons learned"
+    required: false
+  - name: tags
+    type: array
+    description: "Tags for categorising the incident (e.g., malware, phishing, lateral-movement)"
+    required: false
+
+consts:
+  investigation_index: "investigation-contexts"
+  kb_index: "kb-incidents"
+
+steps:
+
+  - name: get_investigation
+    type: elasticsearch.request
+    with:
+      method: GET
+      path: "/{{ consts.investigation_index }}/_doc/{{ inputs.investigation_doc_id }}"
+
+  - name: write_incident_knowledge
+    type: elasticsearch.index
+    with:
+      index: "{{ consts.kb_index }}"
+      document:
+        title: "{{ steps.get_investigation.output._source.title }}"
+        content: |
+          ## Resolution Summary
+          {{ inputs.resolution_summary }}
+
+          ## Investigation Details
+          - Trigger: {{ steps.get_investigation.output._source.trigger_type }}
+          - Risk Tier: {{ steps.get_investigation.output._source.risk_tier }}
+          - Status: resolved
+
+          {% if inputs.lessons_learned %}
+          ## Lessons Learned
+          {{ inputs.lessons_learned }}
+          {% endif %}
+        semantic_summary: "{{ steps.get_investigation.output._source.title }}. {{ inputs.resolution_summary }}"
+        category: "incident-resolution"
+        source: "record-incident-resolution"
+        tags: ${{ inputs.tags | default: '["incident"]' }}
+        created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+        updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+        metadata:
+          investigation_doc_id: "{{ inputs.investigation_doc_id }}"
+          investigation_id: "{{ steps.get_investigation.output._source.investigation_id }}"
+          trigger_type: "{{ steps.get_investigation.output._source.trigger_type }}"
+          trigger_ref: "{{ steps.get_investigation.output._source.trigger_ref }}"
+          evidence_count: "{{ steps.get_investigation.output._source.evidence | size }}"
+          actions_count: "{{ steps.get_investigation.output._source.actions_taken | size }}"
+
+  - name: update_investigation_resolved
+    type: elasticsearch.request
+    with:
+      method: POST
+      path: "/{{ consts.investigation_index }}/_update/{{ inputs.investigation_doc_id }}"
+      body:
+        doc:
+          status: "closed"
+          resolved_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+          updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+
+  - name: confirm
+    type: console
+    with:
+      message: "Incident resolution recorded in {{ consts.kb_index }}. Investigation {{ inputs.investigation_doc_id }} marked as closed."
+
+outputs:
+  knowledge_doc_id:
+    value: "{{ steps.write_incident_knowledge.output._id }}"

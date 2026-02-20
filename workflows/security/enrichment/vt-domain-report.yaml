@@ -1,0 +1,64 @@
+# =============================================================================
+# Workflow: VirusTotal — Domain Report
+# Category: security/enrichment
+#
+# Retrieves a domain analysis report from VirusTotal including threat
+# reputation, detection results from 70+ engines/blocklists, DNS records,
+# WHOIS data, and associated relationships (subdomains, IPs, files).
+#
+# Free tier: 4 requests/min, 500 requests/day
+# API docs: https://docs.virustotal.com/reference/domain-info
+# =============================================================================
+
+name: "VirusTotal — Domain Report"
+description: "Get a VirusTotal threat report for a domain"
+
+triggers:
+  - type: manual
+
+consts:
+  vt_api_key: YOUR-VT-API-KEY
+
+inputs:
+  - name: domain
+    type: string
+    description: "Domain to look up (e.g., example.com)"
+    required: true
+
+steps:
+  - name: lookup_domain
+    type: http
+    with:
+      url: "https://www.virustotal.com/api/v3/domains/{{ inputs.domain }}"
+      method: GET
+      headers:
+        x-apikey: "{{ consts.vt_api_key }}"
+        Accept: application/json
+      timeout: 30s
+    on-failure:
+      retry:
+        max-attempts: 2
+        delay: 5s
+      continue: true
+
+  - name: format_report
+    type: console
+    with:
+      message: |
+        === VirusTotal Domain Report ===
+        Domain: {{ inputs.domain }}
+        
+        Detection: {{ steps.lookup_domain.output.data.data.attributes.last_analysis_stats.malicious }}/{{ steps.lookup_domain.output.data.data.attributes.last_analysis_stats.malicious | plus: steps.lookup_domain.output.data.data.attributes.last_analysis_stats.undetected }} engines flagged as malicious
+        Reputation: {{ steps.lookup_domain.output.data.data.attributes.reputation }}
+        Registrar: {{ steps.lookup_domain.output.data.data.attributes.registrar }}
+        Creation date: {{ steps.lookup_domain.output.data.data.attributes.creation_date }}
+        Last analysed: {{ steps.lookup_domain.output.data.data.attributes.last_analysis_date }}
+        Categories: {{ steps.lookup_domain.output.data.data.attributes.categories | map: "value" | join: ", " }}
+        
+        {% if steps.lookup_domain.output.data.data.attributes.last_analysis_stats.malicious > 3 %}
+        VERDICT: MALICIOUS — multiple engines flag this domain
+        {% elsif steps.lookup_domain.output.data.data.attributes.last_analysis_stats.malicious > 0 %}
+        VERDICT: SUSPICIOUS — some engines flag this domain
+        {% else %}
+        VERDICT: CLEAN — no engines flag this domain
+        {% endif %}

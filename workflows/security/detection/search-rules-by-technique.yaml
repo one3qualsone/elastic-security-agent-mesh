@@ -1,0 +1,51 @@
+# =============================================================================
+# Workflow: Search Rules by MITRE Technique
+# Category: security/detection
+#
+# Finds detection rules mapped to a specific MITRE ATT&CK technique ID
+# (e.g., T1059, T1059.001). Uses the Detection Engine API _find endpoint
+# with a filter on the threat mapping.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Search Rules by MITRE Technique
+description: Find detection rules mapped to a specific MITRE ATT&CK technique.
+enabled: true
+
+tags:
+  - agent-mesh
+  - detection-engineering
+  - mitre
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: technique_id
+    type: string
+    description: "MITRE ATT&CK technique ID (e.g., T1059, T1059.001)"
+    required: true
+  - name: per_page
+    type: integer
+    description: "Maximum results to return"
+    default: 50
+
+steps:
+
+  - name: search_rules
+    type: kibana.request
+    with:
+      method: GET
+      path: "/api/detection_engine/rules/_find?per_page={{ inputs.per_page }}&search={{ inputs.technique_id }}"
+
+  - name: output_results
+    type: console
+    with:
+      message: |
+        Found {{ steps.search_rules.output.data.total }} rules potentially matching technique {{ inputs.technique_id }}
+
+outputs:
+  total:
+    value: "{{ steps.search_rules.output.data.total }}"
+  rules:
+    value: "{{ steps.search_rules.output.data.data }}"

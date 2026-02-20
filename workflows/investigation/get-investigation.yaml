@@ -1,0 +1,54 @@
+# =============================================================================
+# Workflow: Get Investigation
+# Category: investigation
+#
+# Retrieves the current state of an investigation context by document ID.
+# Returns all evidence, actions taken, and pending actions.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Get Investigation
+description: Retrieve the current state of an investigation context.
+enabled: true
+
+tags:
+  - agent-mesh
+  - investigation
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: document_id
+    type: string
+    description: "Elasticsearch document ID of the investigation context"
+    required: true
+
+consts:
+  index_name: "investigation-contexts"
+
+steps:
+
+  - name: get_context
+    type: elasticsearch.request
+    with:
+      method: GET
+      path: "/{{ consts.index_name }}/_doc/{{ inputs.document_id }}"
+
+  - name: output_context
+    type: console
+    with:
+      message: |
+        Investigation: {{ steps.get_context.output._source.title }}
+        Status: {{ steps.get_context.output._source.status }}
+        Risk Tier: {{ steps.get_context.output._source.risk_tier }}
+        Assigned Agent: {{ steps.get_context.output._source.assigned_agent }}
+        Evidence Count: {{ steps.get_context.output._source.evidence | size }}
+        Actions Taken: {{ steps.get_context.output._source.actions_taken | size }}
+        Pending Actions: {{ steps.get_context.output._source.pending_actions | size }}
+
+outputs:
+  investigation:
+    value: "{{ steps.get_context.output._source }}"
+  document_id:
+    value: "{{ steps.get_context.output._id }}"

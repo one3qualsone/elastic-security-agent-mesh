@@ -1,0 +1,55 @@
+# =============================================================================
+# Workflow: VirusTotal — Scan URL
+# Category: security/enrichment
+#
+# Submits a URL to VirusTotal for scanning by 70+ antivirus engines and
+# URL blocklists. Returns a scan ID for retrieving the analysis report.
+#
+# Free tier: 4 requests/min, 500 requests/day
+# API docs: https://docs.virustotal.com/reference/scan-url
+# =============================================================================
+
+name: "VirusTotal — Scan URL"
+description: "Submit a URL to VirusTotal for threat analysis"
+
+triggers:
+  - type: manual
+
+consts:
+  vt_api_key: YOUR-VT-API-KEY
+
+inputs:
+  - name: url
+    type: string
+    description: "URL to scan (e.g., https://example.com/suspicious-page)"
+    required: true
+
+steps:
+  - name: scan_url
+    type: http
+    with:
+      url: "https://www.virustotal.com/api/v3/urls"
+      method: POST
+      headers:
+        x-apikey: "{{ consts.vt_api_key }}"
+        Content-Type: application/x-www-form-urlencoded
+      body:
+        url: "{{ inputs.url }}"
+      timeout: 30s
+    on-failure:
+      retry:
+        max-attempts: 2
+        delay: 5s
+      continue: true
+
+  - name: format_result
+    type: console
+    with:
+      message: |
+        === VirusTotal URL Scan Submitted ===
+        URL: {{ inputs.url }}
+        
+        Analysis ID: {{ steps.scan_url.output.data.data.id }}
+        
+        The URL has been queued for analysis. Use the URL report workflow
+        to retrieve results once processing completes.

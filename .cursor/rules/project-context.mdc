@@ -1,0 +1,70 @@
+---
+description: Project context and conventions for the Elastic Security Agent Mesh — autonomous SOC platform
+alwaysApply: true
+---
+
+# Elastic Security Agent Mesh
+
+Multi-agent autonomous SOC built natively on Elastic (Agent Builder + Workflows + Elasticsearch). Agents are domain specialists that discover each other via a shared `agent-registry` index and collaborate through `investigation-contexts`.
+
+## Architecture (4 + 2 Layers)
+
+1. **Orchestrator** — routes user/alert requests to specialists via semantic search on `agent-registry`
+2. **Specialist Agents** — Detection Engineering, TI, Analyst, Forensics, Compliance, SOC Ops (each in `agents/definitions/`)
+3. **Shared Tool Workflows** — reusable YAML workflows in `workflows/` (enrichment, search, cases, alerts, endpoint, VirusTotal)
+4. **Knowledge Management** — `kb-*` indices with `semantic_text` fields; CRUD via `workflows/knowledge/`
+5. **Investigation Context** — `investigation-contexts` index tracks shared state across multi-agent investigations (`workflows/investigation/`)
+6. **Governance** — `action-policies` index with tiered risk controls; checked before high-impact actions (`workflows/governance/`)
+
+Read `ARCHITECTURE.md` and `ROADMAP.md` before making structural changes.
+
+## File Conventions
+
+- Agent definitions: `agents/definitions/{name}.yaml` (reference configs, not executable workflows)
+- Setup workflows: `agents/setup/` (index creation, agent registration)
+- Tool workflows: `workflows/{category}/{name}.yaml`
+- Mesh-only: `workflows/mesh/`, `workflows/investigation/`, `workflows/governance/`, `agents/`
+- Open-sourceable: everything in `workflows/` except `mesh/`, `investigation/`, `governance/`
+
+## Workflow YAML Patterns
+
+- Required fields: `name`, `steps`; optional: `description`, `tags`, `triggers`, `consts`, `inputs`, `outputs`
+- Step types: `console`, `http`, `elasticsearch.search`, `elasticsearch.index`, `elasticsearch.request`, `kibana.request`, `kibana.cases`, `kibana.post_agent_builder_converse`, `foreach`, `parallel`, `wait`, `if`
+- Variables: `{{ consts.x }}`, `{{ inputs.x }}`, `{{ steps.step_name.output.x }}`, Liquid templating
+- Secrets go in `consts` with placeholder values; real values in environment variables (never committed)
+
+## Agent Definition Schema
+
+```yaml
+agent_name: "Name"
+description: "What it does"
+domain: domain_keyword
+system_instructions: |
+  Multi-line prompt
+knowledge_bases:
+  - index: kb-name
+    description: "What it contains"
+tools:
+  - name: Tool Name
+    workflow: workflows/path/to.yaml
+    description: "What it does"
+registry_entry:
+  agent_name: "Name"
+  domain: "domain"
+  capabilities: [list]
+  description: "Semantic description for routing"
+  keywords: [list]
+```
+
+## Key Indices
+
+| Index | Purpose |
+|-------|---------|
+| `agent-registry` | Agent discovery and semantic routing |
+| `investigation-contexts` | Shared investigation state between agents |
+| `action-policies` | Governance tier definitions and approval rules |
+| `kb-*` | Domain-specific knowledge bases |
+
+## Current Phase
+
+Check `ROADMAP.md` for latest status. Update it when completing deliverables.

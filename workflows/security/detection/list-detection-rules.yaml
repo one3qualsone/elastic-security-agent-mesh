@@ -1,0 +1,77 @@
+# =============================================================================
+# Workflow: List Detection Rules
+# Category: security/detection
+#
+# Lists detection rules from the Kibana Detection Engine API with optional
+# filtering by enabled status, tags, or search query. Returns paginated
+# results with rule name, ID, enabled status, severity, and MITRE mappings.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: List Detection Rules
+description: List Elastic Security detection rules with optional filters.
+enabled: true
+
+tags:
+  - agent-mesh
+  - detection-engineering
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: page
+    type: integer
+    description: "Page number (1-based)"
+    default: 1
+  - name: per_page
+    type: integer
+    description: "Results per page"
+    default: 20
+  - name: sort_field
+    type: string
+    description: "Field to sort by (e.g., name, enabled, severity)"
+    default: "name"
+  - name: sort_order
+    type: string
+    description: "Sort order: asc or desc"
+    default: "asc"
+  - name: filter
+    type: string
+    description: "KQL filter string (e.g., alert.attributes.enabled: true)"
+    required: false
+  - name: search
+    type: string
+    description: "Free text search across rule names and descriptions"
+    required: false
+
+steps:
+
+  - name: build_query_params
+    type: console
+    with:
+      message: |
+        {% assign params = "page=" | append: inputs.page | append: "&per_page=" | append: inputs.per_page | append: "&sort_field=" | append: inputs.sort_field | append: "&sort_order=" | append: inputs.sort_order %}
+        {% if inputs.filter %}{% assign params = params | append: "&filter=" | append: inputs.filter %}{% endif %}
+        {% if inputs.search %}{% assign params = params | append: "&search=" | append: inputs.search %}{% endif %}
+        {{ params }}
+
+  - name: list_rules
+    type: kibana.request
+    with:
+      method: GET
+      path: "/api/detection_engine/rules/_find?page={{ inputs.page }}&per_page={{ inputs.per_page }}&sort_field={{ inputs.sort_field }}&sort_order={{ inputs.sort_order }}{% if inputs.filter %}&filter={{ inputs.filter }}{% endif %}{% if inputs.search %}&search={{ inputs.search }}{% endif %}"
+
+  - name: output_summary
+    type: console
+    with:
+      message: |
+        Found {{ steps.list_rules.output.data.total }} rules (showing page {{ inputs.page }}, {{ inputs.per_page }} per page)
+
+outputs:
+  total:
+    value: "{{ steps.list_rules.output.data.total }}"
+  rules:
+    value: "{{ steps.list_rules.output.data.data }}"
+  page:
+    value: "{{ steps.list_rules.output.data.page }}"

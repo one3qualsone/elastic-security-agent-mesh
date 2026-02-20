@@ -1,0 +1,52 @@
+# =============================================================================
+# Workflow: Enable/Disable Detection Rule
+# Category: security/detection
+#
+# Toggles a detection rule's enabled status. Enabling a rule in production
+# is a Tier 2 governance action — agents should check action policy first
+# and request approval if required.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Enable Disable Rule
+description: Toggle a detection rule on or off by rule_id.
+enabled: true
+
+tags:
+  - agent-mesh
+  - detection-engineering
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: rule_id
+    type: string
+    description: "The rule_id of the detection rule to toggle"
+    required: true
+  - name: enabled
+    type: boolean
+    description: "Set to true to enable, false to disable"
+    required: true
+
+steps:
+
+  - name: toggle_rule
+    type: kibana.request
+    with:
+      method: PATCH
+      path: /api/detection_engine/rules
+      body:
+        rule_id: "{{ inputs.rule_id }}"
+        enabled: ${{ inputs.enabled }}
+
+  - name: confirm
+    type: console
+    with:
+      message: |
+        Rule {{ inputs.rule_id }}: {% if inputs.enabled %}ENABLED{% else %}DISABLED{% endif %}
+        Name: {{ steps.toggle_rule.output.data.name }}
+
+outputs:
+  rule:
+    value: "{{ steps.toggle_rule.output.data }}"

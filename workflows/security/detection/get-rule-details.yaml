@@ -1,0 +1,48 @@
+# =============================================================================
+# Workflow: Get Rule Details
+# Category: security/detection
+#
+# Retrieves the full definition of a detection rule by its rule_id.
+# Returns query, MITRE mappings, severity, risk score, data sources,
+# and all configuration details.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Get Rule Details
+description: Get the full definition of a detection rule by ID.
+enabled: true
+
+tags:
+  - agent-mesh
+  - detection-engineering
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: rule_id
+    type: string
+    description: "The rule_id of the detection rule to retrieve"
+    required: true
+
+steps:
+
+  - name: get_rule
+    type: kibana.request
+    with:
+      method: GET
+      path: "/api/detection_engine/rules?rule_id={{ inputs.rule_id }}"
+
+  - name: output_rule
+    type: console
+    with:
+      message: |
+        Rule: {{ steps.get_rule.output.data.name }}
+        Type: {{ steps.get_rule.output.data.type }}
+        Enabled: {{ steps.get_rule.output.data.enabled }}
+        Severity: {{ steps.get_rule.output.data.severity }}
+        Risk Score: {{ steps.get_rule.output.data.risk_score }}
+
+outputs:
+  rule:
+    value: "{{ steps.get_rule.output.data }}"

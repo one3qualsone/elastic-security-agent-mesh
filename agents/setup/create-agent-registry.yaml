@@ -1,0 +1,105 @@
+# =============================================================================
+# Workflow: Create Agent Registry
+# Category: setup
+#
+# Creates the agent-registry index used by the orchestrator to discover
+# specialist agents at runtime. The registry has a semantic_description
+# field for natural language routing queries.
+#
+# Run once during initial mesh setup.
+#
+# PREREQUISITES:
+#   - An inference endpoint must be configured (same as knowledge bases).
+#
+# Author: Security Agent Mesh
+# Created: 2026-02-19
+# =============================================================================
+name: Create Agent Registry
+description: Create the agent-registry index for agent mesh routing and discovery.
+enabled: true
+
+tags:
+  - agent-mesh
+  - setup
+  - infrastructure
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: inference_endpoint_id
+    type: string
+    description: "Inference endpoint ID for semantic_text (e.g., .multilingual-e5-small-elasticsearch)"
+    default: ".multilingual-e5-small-elasticsearch"
+
+consts:
+  registry_index: "agent-registry"
+
+steps:
+
+  - name: check_index_exists
+    type: elasticsearch.request
+    with:
+      method: HEAD
+      path: "/{{ consts.registry_index }}"
+    on-failure:
+      continue: true
+
+  - name: create_or_skip
+    type: if
+    condition: 'steps.check_index_exists.status: "success"'
+    steps:
+
+      - name: already_exists
+        type: console
+        with:
+          message: "Index {{ consts.registry_index }} already exists. Skipping creation."
+
+    else:
+
+      - name: create_registry_index
+        type: elasticsearch.request
+        with:
+          method: PUT
+          path: "/{{ consts.registry_index }}"
+          body:
+            settings:
+              number_of_shards: 1
+              number_of_replicas: 1
+            mappings:
+              properties:
+                agent_id:
+                  type: keyword
+                agent_name:
+                  type: text
+                  fields:
+                    keyword:
+                      type: keyword
+                domain:
+                  type: keyword
+                capabilities:
+                  type: keyword
+                description:
+                  type: text
+                semantic_description:
+                  type: semantic_text
+                  inference_id: "{{ inputs.inference_endpoint_id }}"
+                keywords:
+                  type: keyword
+                status:
+                  type: keyword
+                version:
+                  type: keyword
+                created_at:
+                  type: date
+                updated_at:
+                  type: date
+
+      - name: confirm_creation
+        type: console
+        with:
+          message: "Agent registry index created with semantic routing support."
+
+outputs:
+  index_name:
+    value: "{{ consts.registry_index }}"
