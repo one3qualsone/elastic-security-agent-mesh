@@ -10,7 +10,7 @@
 # API docs: https://docs.virustotal.com/reference/ip-info
 # =============================================================================
 
-name: "VirusTotal — IP Address Report"
+name: "VirusTotal - IP Address Report"
 description: "Get a VirusTotal threat report for an IP address"
 
 triggers:

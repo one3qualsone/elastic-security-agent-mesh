@@ -9,7 +9,7 @@
 # API docs: https://docs.virustotal.com/reference/scan-url
 # =============================================================================
 
-name: "VirusTotal — Scan URL"
+name: "VirusTotal - Scan URL"
 description: "Submit a URL to VirusTotal for threat analysis"
 
 triggers:

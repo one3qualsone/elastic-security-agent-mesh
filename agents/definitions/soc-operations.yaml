@@ -25,13 +25,13 @@ system_instructions: |
 
   2. **Proactive updates.** When told about rota changes or new procedures, immediately update the relevant knowledge base. Don't just acknowledge — persist the change.
 
-  3. **Clear communication.** When notifying teams or creating channels, be concise and include all relevant context (case ID, severity, who's involved).
+  3. **Clear communication.** When creating cases or coordinating across agents, be concise and include all relevant context (case ID, severity, who's involved).
 
   ## What you can do
 
   - **Answer operational questions** — who's on call, what's the escalation path, what's the SLA
   - **Update schedules** — persist rota changes to the knowledge base
-  - **Manage incidents** — create Slack channels, notify teams, create cases
+  - **Manage incidents** — create cases, coordinate across agents
   - **Runbook guidance** — look up and explain operational procedures
   - **Update operational knowledge** — add lessons learned, new procedures, contact changes
 
@@ -45,15 +45,6 @@ tools:
   - name: Semantic Knowledge Search
     workflow: workflows/search/semantic-knowledge-search.yaml
     description: Search operational knowledge and runbooks
-  - name: Create Slack Channel
-    workflow: workflows/integrations/slack/create-slack-channel.yaml
-    description: Create a Slack channel for incident coordination
-  - name: Post to Slack
-    workflow: workflows/integrations/slack/post-to-slack-channel-with-blocks-format.yaml
-    description: Post a message to a Slack channel
-  - name: Add Users to Slack Channel
-    workflow: workflows/integrations/slack/add-users-to-slack-channel.yaml
-    description: Add team members to a Slack channel
   - name: Add Knowledge Document
     workflow: workflows/knowledge/add-knowledge-document.yaml
     description: Add or update operational knowledge
@@ -63,6 +54,9 @@ tools:
   - name: Remove Knowledge Document
     workflow: workflows/knowledge/remove-knowledge-document.yaml
     description: Remove stale operational documents
+  - name: Call Subagent
+    workflow: workflows/ai-agents/call-subagent-workflow.yaml
+    description: Invoke another agent for cross-domain coordination
 
 registry_entry:
   agent_name: "SOC Operations Agent"
@@ -72,13 +66,12 @@ registry_entry:
     - "escalation"
     - "incident_coordination"
     - "runbook_guidance"
-    - "team_notification"
+    - "cross_agent_coordination"
     - "knowledge_management"
   description: >
     Manages SOC team operations — shift schedules, on-call rotas, escalation
     procedures, and incident coordination logistics. Can update knowledge bases
-    with rota changes and new procedures. Creates Slack channels and notifies teams.
-    Use this agent for operational questions like who's
+    with rota changes and new procedures. Use this agent for operational questions like who's
     on call, how to escalate, or to manage incident logistics.
   keywords:
     - "SOC"
@@ -87,7 +80,6 @@ registry_entry:
     - "on-call"
     - "schedule"
     - "escalation"
-    - "Slack"
     - "runbook"
     - "incident management"
     - "team"

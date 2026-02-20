@@ -61,16 +61,16 @@ KNOWLEDGE_BASE_INDICES = [
 ]
 
 WORKFLOW_DIRS = [
+    "workflows/ai-agents",
+    "workflows/feedback",
+    "workflows/governance",
+    "workflows/investigation",
     "workflows/knowledge",
+    "workflows/mesh",
     "workflows/search",
     "workflows/security/detection",
     "workflows/security/enrichment",
     "workflows/security/response",
-    "workflows/ai-agents",
-    "workflows/mesh",
-    "workflows/investigation",
-    "workflows/governance",
-    "workflows/feedback",
     "workflows/utilities",
 ]
 

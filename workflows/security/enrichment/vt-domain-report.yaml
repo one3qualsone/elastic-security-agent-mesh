@@ -10,7 +10,7 @@
 # API docs: https://docs.virustotal.com/reference/domain-info
 # =============================================================================
 
-name: "VirusTotal — Domain Report"
+name: "VirusTotal - Domain Report"
 description: "Get a VirusTotal threat report for a domain"
 
 triggers:

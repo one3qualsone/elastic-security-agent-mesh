@@ -13,7 +13,7 @@
 # API docs: https://docs.virustotal.com/reference/files-scan
 # =============================================================================
 
-name: "VirusTotal — Upload File for Scanning"
+name: "VirusTotal - Upload File for Scanning"
 description: "Submit a file to VirusTotal for analysis by 70+ antivirus engines"
 
 triggers:

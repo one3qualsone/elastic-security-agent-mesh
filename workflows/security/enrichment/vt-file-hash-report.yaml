@@ -10,7 +10,7 @@
 # API docs: https://docs.virustotal.com/reference/file-info
 # =============================================================================
 
-name: "VirusTotal — File Hash Report"
+name: "VirusTotal - File Hash Report"
 description: "Get a VirusTotal file report by MD5, SHA-1, or SHA-256 hash"
 
 triggers:

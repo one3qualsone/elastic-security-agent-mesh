@@ -13,7 +13,7 @@
 # API docs: https://docs.virustotal.com/reference/url-info
 # =============================================================================
 
-name: "VirusTotal — URL Analysis Report"
+name: "VirusTotal - URL Analysis Report"
 description: "Get a VirusTotal analysis report for a URL"
 
 triggers:
