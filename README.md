@@ -166,8 +166,23 @@ The Agent Builder API does not support creating `index_search` tools — this mu
 3. Set **Target pattern** to `agent-registry`
 4. Set **Tool ID** to `security-mesh.agent-registry`
 5. Set **Description** to `Search the agent registry to discover specialist agents by capability, domain, or natural language description`
-6. Add label `security-mesh`
-7. Save the tool
+6. Set **Custom instructions** to:
+
+```
+Search the agent registry to find specialist agents by capability, domain, or task description. The index contains one document per agent with the following fields:
+
+- agent_name: The agent's display name
+- agent_id: The Agent Builder ID (use this when calling a subagent)
+- domain: The agent's area of expertise (e.g., detection_engineering, threat_intel, triage, forensics, compliance, soc_ops, orchestrator)
+- capabilities: Comma-separated list of what the agent can do
+- description: Natural language description of the agent's role and strengths
+- keywords: Search terms associated with the agent
+
+When searching, use natural language that describes what you need — the semantic_summary field enables semantic matching. For example, searching "enrich a suspicious IP address" will match the Threat Intelligence agent. Return the agent_name and agent_id from the results so you can route work using the Call Subagent tool.
+```
+
+7. Add label `security-mesh`
+8. Save the tool
 
 #### Step 2: Set Up Web Search via MCP (Optional but Recommended)
 
