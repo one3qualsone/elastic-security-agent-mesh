@@ -941,9 +941,17 @@ def create_agents(tool_name_to_id):
         agent_id = slugify(agent_name)
 
         tool_ids = []
+        builtin_tools = []
         skipped_tools = []
         fallback_tools = []
         for tool in agent_def.get("tools", []):
+            if tool.get("type") == "builtin":
+                builtin_id = tool.get("tool_id", "")
+                if builtin_id:
+                    tool_ids.append(builtin_id)
+                    builtin_tools.append(f"{tool['name']} → {builtin_id}")
+                continue
+
             tid = tool_name_to_id.get(tool["name"])
             if tid:
                 tool_ids.append(tid)
@@ -960,6 +968,10 @@ def create_agents(tool_name_to_id):
                 else:
                     skipped_tools.append(tool["name"])
 
+        if builtin_tools:
+            print(f"    [builtin] {agent_name}: {len(builtin_tools)} platform tool(s):")
+            for bt in builtin_tools:
+                print(f"              - {bt}")
         if fallback_tools:
             print(f"    [info] {agent_name}: {len(fallback_tools)} tool(s) resolved via fallback:")
             for ft in fallback_tools:
