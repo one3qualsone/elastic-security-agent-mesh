@@ -112,36 +112,33 @@ steps:
                   updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
 
           - name: invoke_analyst
-            type: kibana.request
+            type: kibana.post_agent_builder_converse
             with:
-              method: POST
-              path: /api/agent_builder/converse
-              body:
-                agent_id: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
-                connector_id: "{{ consts.connector_id }}"
-                input: |
-                  Triage this security alert. Investigation document ID: {{ steps.create_investigation.output._id }}
+              agent-id: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
+              connector-id: "{{ consts.connector_id }}"
+              input: |
+                Triage this security alert. Investigation document ID: {{ steps.create_investigation.output._id }}
 
-                  Alert Rule: {{ foreach.item.kibana.alert.rule.name }}
-                  Alert ID: {{ foreach.item._id }}
-                  Severity: {{ foreach.item.kibana.alert.severity }}
-                  Risk Score: {{ foreach.item.kibana.alert.risk_score }}
+                Alert Rule: {{ foreach.item.kibana.alert.rule.name }}
+                Alert ID: {{ foreach.item._id }}
+                Severity: {{ foreach.item.kibana.alert.severity }}
+                Risk Score: {{ foreach.item.kibana.alert.risk_score }}
 
-                  Alert details:
-                  {{ foreach.item | json }}
+                Alert details:
+                {{ foreach.item | json }}
 
-                  Instructions:
-                  1. Analyse the alert and determine if it is a true positive or false positive
-                  2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents)
-                  3. Add your findings as evidence to investigation {{ steps.create_investigation.output._id }}
-                  4. If true positive: tag the alert, create a case, and escalate to forensics if needed
-                  5. If false positive: tag the alert, close it, and document why
+                Instructions:
+                1. Analyse the alert and determine if it is a true positive or false positive
+                2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents)
+                3. Add your findings as evidence to investigation {{ steps.create_investigation.output._id }}
+                4. If true positive: tag the alert, create a case, and escalate to forensics if needed
+                5. If false positive: tag the alert, close it, and document why
             timeout: 600s
 
           - name: log_analyst_response
             type: console
             with:
-              message: "Analyst agent response: {{ steps.invoke_analyst.output.data.response.message }}"
+              message: "Analyst agent response: {{ steps.invoke_analyst.output.response.message }}"
 
           - name: record_analyst_evidence
             type: http
@@ -162,7 +159,7 @@ steps:
                       agent_id: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
                       timestamp: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
                       evidence_type: "finding"
-                      content: "{{ steps.invoke_analyst.output.data.response.message }}"
+                      content: "{{ steps.invoke_analyst.output.response.message }}"
                       confidence: 0.8
                       references:
                         - "{{ foreach.item._id }}"

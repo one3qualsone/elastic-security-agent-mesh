@@ -70,20 +70,17 @@ steps:
             Score: {{ steps.find_agent.output.hits.hits[0]._score }}
 
       - name: invoke_specialist
-        type: kibana.request
+        type: kibana.post_agent_builder_converse
         with:
-          method: POST
-          path: /api/agent_builder/converse
-          body:
-            agent_id: "{{ steps.find_agent.output.hits.hits[0]._source.agent_id }}"
-            connector_id: "{{ consts.connector_id }}"
-            input: "{{ inputs.request }}"
+          agent-id: "{{ steps.find_agent.output.hits.hits[0]._source.agent_id }}"
+          connector-id: "{{ consts.connector_id }}"
+          input: "{{ inputs.request }}"
         timeout: 600s
 
       - name: output_response
         type: console
         with:
-          message: "{{ steps.invoke_specialist.output.data.response.message }}"
+          message: "{{ steps.invoke_specialist.output.response.message }}"
 
     else:
 

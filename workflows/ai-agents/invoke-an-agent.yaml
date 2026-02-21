@@ -17,12 +17,9 @@ steps:
       message: "Alert event received, invoking triage agent with connector={{ consts.connector_id }}"
 
   - name: kibana_post_agent_builder_converse_step
-    type: kibana.request
+    type: kibana.post_agent_builder_converse
     with:
-      method: POST
-      path: /api/agent_builder/converse
-      body:
-        agent_id: alert.triage
-        connector_id: "{{ consts.connector_id }}"
-        input: "Triage the following alert based on your system instructions: {{event | json}}"
+      agent-id: alert.triage
+      connector-id: "{{ consts.connector_id }}"
+      input: "Triage the following alert based on your system instructions: {{event | json}}"
     timeout: 600s
