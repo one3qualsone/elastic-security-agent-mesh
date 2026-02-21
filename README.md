@@ -209,10 +209,22 @@ The LLM connector is needed in two places:
 
 The Call Subagent, Orchestrator Router, and Mesh Automated Triaging workflows invoke agents programmatically via the converse API. They need a `connector_id` to specify which LLM to use.
 
-1. Go to **Stack Management > Connectors** in Kibana
-2. Click your LLM connector (e.g., Claude 4.5 Opus, or your custom connector)
-3. Copy the connector ID from the URL or details panel
-4. Add it as `LLM_CONNECTOR_ID` in your GitHub Actions secrets (or export locally)
+1. Find your connector ID by running this in **Kibana Dev Tools**:
+
+```
+GET kbn:/api/actions/connectors
+```
+
+2. Look for your LLM connector in the response — the `id` field is what you need. Common built-in IDs:
+
+| Connector | ID |
+|-----------|-----|
+| Claude Opus 4.5 | `Anthropic-Claude-Opus-4-5` |
+| Claude Sonnet 4.5 | `Anthropic-Claude-Sonnet-4-5` |
+| Gemini 2.5 Pro | `Google-Gemini-2-5-Pro` |
+| GPT-5.2 | `OpenAI-GPT-5-2` |
+
+3. Add it as `LLM_CONNECTOR_ID` in your GitHub Actions secrets (or export locally)
 
 The setup script injects this into the workflow YAML files during deployment, just like API keys.
 
