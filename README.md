@@ -91,6 +91,7 @@ The setup requires environment variables for your Elastic deployment. You can pr
 | `KIBANA_URL` | Kibana endpoint URL |
 | `ES_API_KEY` | Elasticsearch API key (cluster + index permissions) |
 | `KIBANA_API_KEY` | Kibana API key (Workflows, Cases, Security) |
+| `LLM_CONNECTOR_ID` | The LLM connector ID for agent-to-agent calls. We recommend **Claude Opus 4.5** (`Anthropic-Claude-Opus-4-5`) for best results, or **Claude Sonnet 4.5** (`Anthropic-Claude-Sonnet-4-5`) for lower cost. When Elastic 9.4 ships (April 2026), this can be updated to Claude Opus 4.6. Find your connector ID by running `GET kbn:/api/actions/connectors` in Kibana Dev Tools. |
 
 **Recommended:**
 
@@ -98,12 +99,6 @@ The setup requires environment variables for your Elastic deployment. You can pr
 |----------|---------|-------------|
 | `KIBANA_SPACE` | *(default space)* | Target Kibana space for workflows and agents |
 | `INFERENCE_ENDPOINT_ID` | `.multilingual-e5-small-elasticsearch` | Inference endpoint powering semantic_text fields |
-
-**Required (LLM connector for agent-to-agent calls):**
-
-| Variable | Description |
-|----------|-------------|
-| `LLM_CONNECTOR_ID` | The Kibana connector ID for your LLM. Find it in **Stack Management > Connectors** — click your connector and copy the ID from the URL or details panel. This is injected into workflows that call agents programmatically (Call Subagent, Orchestrator Router, Mesh Automated Triaging). |
 
 **Optional (third-party integrations):**
 
