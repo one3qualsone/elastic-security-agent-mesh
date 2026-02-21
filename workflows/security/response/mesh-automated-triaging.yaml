@@ -7,7 +7,7 @@
 # this workflow:
 #   1. Creates an investigation context for state tracking
 #   2. Enriches via the Threat Intelligence agent
-#   3. Routes to the Security Analyst agent via Agent Builder
+#   3. Routes to the L1 Triage Analyst agent via Agent Builder
 #   4. Lets the analyst decide on escalation to Forensics or others
 #   5. Creates a case and logs everything for audit
 #

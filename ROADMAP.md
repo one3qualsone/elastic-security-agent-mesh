@@ -11,7 +11,8 @@
 | **Phase 0** | Foundation — registry, knowledge management, orchestrator scaffold, investigation context, governance | In progress |
 | **Phase 1** | Detection Engineering Agent | In progress |
 | **Phase 2** | Threat Intelligence Agent + Web Search Agent | Not started |
-| **Phase 3** | Security Analyst (Triage) Agent | Not started |
+| **Phase 3a** | L1 Triage Analyst | Not started |
+| **Phase 3b** | L2 Investigation Analyst | Not started |
 | **Phase 4** | Forensics Agent | Not started |
 | **Phase 5** | Compliance Agent | Not started |
 | **Phase 6** | SOC Operations Agent | Not started |
@@ -140,21 +141,37 @@ When migrating from Microsoft Sentinel, Splunk, or another SIEM:
 
 ---
 
-## Phase 3 — Security Analyst (Triage) Agent
+## Phase 3a — L1 Triage Analyst
 
-**Goal:** Automate alert triage with historical context from past incidents.
+**Goal:** High-volume alert triage with fast classification and escalation to L2.
 
 - [ ] Agent definition (Agent Builder)
 - [ ] Knowledge bases
   - [ ] `kb-incidents` — resolved incidents (populated post-case-closure)
   - [ ] `kb-playbooks` — SOC standard operating procedures
-- [ ] Tool workflows
-  - Reuse existing: alert tagging, case creation, enrichment
-  - [ ] `search-similar-incidents.yaml` — semantic search on `kb-incidents`
-  - [ ] `run-playbook-step.yaml` — execute a playbook step
-  - [ ] `escalate-to-agent.yaml` — hand off to forensics or other specialist
+- [ ] Tool workflows (14 tools, 10 slots remaining)
+  - Reuse existing: alert tagging (TP/FP), case creation, alert close/acknowledge
+  - [x] `get-case-details.yaml` — check existing cases before creating duplicates
+  - [x] `add-alert-to-case.yaml` — link related alerts to existing cases
+  - [x] `create-alert-note.yaml` — document triage findings on alerts
+  - [ ] Alert-triggered triage workflow (builds on existing `mesh-automated-triaging.yaml`)
+- [ ] Register in agent-registry
+
+## Phase 3b — L2 Investigation Analyst
+
+**Goal:** Deep investigation, full case lifecycle management, and knowledge capture.
+
+- [ ] Agent definition (Agent Builder)
+- [ ] Knowledge bases
+  - [ ] `kb-incidents` — resolved incidents (populated post-case-closure)
+  - [ ] `kb-playbooks` — SOC standard operating procedures
+- [ ] Tool workflows (19 tools, 5 slots remaining)
+  - Full case lifecycle: create, update status/severity, add comments, get details
+  - [x] `update-case-status.yaml` — change case status or severity
+  - [x] `add-case-comment.yaml` — add investigation notes to cases
+  - [x] `add-alert-to-case.yaml` — link alerts to cases for incident correlation
+  - Reuse existing: investigation context CRUD, evidence, knowledge capture, governance
   - [ ] `record-incident-resolution.yaml` — write to `kb-incidents` when case closes
-- [ ] Alert-triggered triage workflow (builds on existing `ad-automated-triaging.yaml`)
 - [ ] Register in agent-registry
 
 ---

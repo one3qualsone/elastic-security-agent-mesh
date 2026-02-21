@@ -198,27 +198,47 @@ Each specialist is created in Elastic Agent Builder with:
 - Can research emerging threats using web search and summarise findings.
 - Maintains a history of investigated IOCs to avoid repeated lookups.
 
-#### 4. Security Analyst (Triage) Agent
+#### 4a. L1 Triage Analyst
 
-**Domain:** Alert triage, investigation, escalation.
+**Domain:** High-volume alert triage, classification, escalation.
 
 **Knowledge bases:**
 - `kb-incidents` — Previously resolved incidents (what happened, how it was resolved, lessons learned)
 - `kb-playbooks` — SOC playbooks and standard operating procedures
 
 **Tool workflows:**
-- Search alerts (ES|QL on `.alerts-security*`)
-- Tag alerts (TP/FP) (existing)
-- Close/acknowledge alerts (existing)
-- Create cases (existing)
-- Enrichment workflows (VT, IP reputation)
-- Invoke Detection Engineering Agent (for rule questions)
-- Invoke Threat Intel Agent (for IOC enrichment)
+- Search alerts (builtin `security.alerts`)
+- Tag alerts (TP/FP)
+- Close/acknowledge alerts
+- Create cases (for escalation)
+- Link alerts to existing cases
+- Get case details (to avoid duplicates)
 
 **Key behaviours:**
-- When triaging an alert, searches `kb-incidents` for similar past incidents to learn from previous resolutions.
-- Follows playbooks from `kb-playbooks` for standard response procedures.
-- Escalates to the Forensics Agent when deep investigation is needed.
+- Fast first-responder for all alerts. Classifies quickly using playbooks and historical data.
+- Creates cases when an alert warrants formal tracking, links related alerts to existing cases.
+- Escalates to the L2 Investigation Analyst for complex incidents requiring deep investigation.
+
+#### 4b. L2 Investigation Analyst
+
+**Domain:** Deep investigation, case lifecycle management, cross-agent coordination.
+
+**Knowledge bases:**
+- `kb-incidents` — Previously resolved incidents (what happened, how it was resolved, lessons learned)
+- `kb-playbooks` — SOC playbooks and standard operating procedures
+
+**Tool workflows:**
+- Full case lifecycle: create, update status/severity, add comments, get details
+- Link alerts to cases for incident correlation
+- Investigation context: create, get, update status, add evidence, search similar
+- Record incident resolutions as knowledge for future reference
+- Invoke Threat Intel Agent, Forensics Agent, Detection Engineering Agent
+
+**Key behaviours:**
+- Owns complex investigations from start to resolution. Tracks all progress in investigation contexts and case comments.
+- Updates case severity when enrichment or investigation reveals new risk (e.g., medium → high after threat intel confirms active campaign).
+- Coordinates with forensics for endpoint analysis and threat intel for IOC enrichment.
+- Captures resolved investigations as knowledge for the L1 analyst to reference in future triage.
 
 #### 5. Forensics Agent
 
@@ -722,7 +742,8 @@ elastic-security-agent/
 │   │   ├── orchestrator.yaml
 │   │   ├── detection-engineering.yaml
 │   │   ├── threat-intelligence.yaml
-│   │   ├── security-analyst.yaml
+│   │   ├── l1-triage-analyst.yaml
+│   │   ├── l2-investigation-analyst.yaml
 │   │   ├── forensics.yaml
 │   │   ├── compliance.yaml
 │   │   └── soc-operations.yaml

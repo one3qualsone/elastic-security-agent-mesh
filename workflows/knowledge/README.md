@@ -17,7 +17,7 @@ These workflows are designed to be registered as **agent tools** in Elastic Agen
 
 ### Example: Agent adding a new incident record
 
-The Security Analyst Agent could call `Add Knowledge Document` with:
+The L2 Investigation Analyst could call `Add Knowledge Document` with:
 
 ```yaml
 index_name: "kb-incidents"

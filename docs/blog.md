@@ -11,7 +11,8 @@ The goal is ambitious: build a self-sustaining SOC that can automatically genera
 The end state is a system where:
 
 - A **Detection Engineering Agent** writes rules based on the threat landscape and data availability, creating detections that map to MITRE ATT&CK and target ECS-normalised fields.
-- A **Security Analyst Agent** triages alerts, enriches them with threat intelligence, and escalates when needed.
+- An **L1 Triage Analyst** classifies alerts quickly, creates cases, and escalates to the L2 when deeper investigation is needed.
+- An **L2 Investigation Analyst** handles complex incidents — managing case lifecycle, collecting evidence, and coordinating with forensics and threat intelligence.
 - A **Threat Intelligence Agent** researches IOCs, tracks campaigns, and feeds context back to the detection engineer.
 - A **Forensics Agent** performs deep investigation on endpoints when the analyst finds something worth digging into.
 - A **Compliance Agent** maps controls to regulations and identifies gaps.
@@ -143,7 +144,7 @@ Every action type has an entry in the `action-policies` index:
 {
   "action_type": "isolate_host",
   "risk_tier": "tier_2",
-  "allowed_callers": ["security_analyst", "forensics"],
+  "allowed_callers": ["l1_triage", "l2_investigation", "forensics"],
   "requires_approval": true,
   "approval_channel": "cases",
   "auto_approve": {

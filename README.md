@@ -35,7 +35,8 @@ This project implements a **mesh of specialised security AI agents** on the Elas
 | **Orchestrator** | Request routing and classification | Definition ready |
 | **Detection Engineering** | Rule lifecycle, MITRE coverage, SIEM migration | Tools built |
 | **Threat Intelligence** | IOC enrichment, threat research | Definition ready |
-| **Security Analyst** | Alert triage, investigation, escalation | Definition ready |
+| **L1 Triage Analyst** | Alert triage, classification, case creation | Definition ready |
+| **L2 Investigation Analyst** | Deep investigation, case lifecycle, evidence | Definition ready |
 | **Forensics** | Endpoint forensics, evidence collection | Definition ready |
 | **Compliance** | Regulatory frameworks, control mapping | Definition ready |
 | **SOC Operations** | Team coordination, shift management | Definition ready |
@@ -129,7 +130,7 @@ The easiest way to deploy — no local Python or dependencies required.
 3. **Run the action**: Actions > "Deploy Security Agent Mesh" > Run workflow
    - Choose `full-setup` for first deployment
 
-This creates all indices, seeds governance policies, imports workflows, creates workflow tools, creates all 7 agents, and registers them in the mesh. Agents will deploy **without** the manual tools — that's expected. We attach those in Phase 2.
+This creates all indices, seeds governance policies, imports workflows, creates workflow tools, creates all 8 agents, and registers them in the mesh. Agents will deploy **without** the manual tools — that's expected. We attach those in Phase 2.
 
 #### Local Deploy (Alternative)
 
@@ -249,15 +250,16 @@ python scripts/setup.py --delete-all     # Delete everything and re-deploy from 
 
 The setup script creates the following agents and tools from `agents/definitions/`. Agent Builder supports four tool types: **Workflows**, **Index Search**, **ES|QL**, and **MCP**. This mesh uses Workflows, built-in platform tools, and MCP tools.
 
-| # | Agent Name | Workflow Tools | Built-in / MCP Tools | Knowledge Bases |
-|---|-----------|---------------|----------------------|-----------------|
-| 1 | **Security Mesh Orchestrator** | Call Subagent | `platform.core.search`, `platform.core.cases` | *None* |
-| 2 | **Detection Engineering Agent** | List Detection Rules, Get Rule Details, Create Detection Rule, Enable/Disable Rule, Search Rules by MITRE Technique, Evaluate MITRE Coverage, Check Field Availability, Check Action Policy, Create Investigation, Add Evidence, Get Investigation, Update Investigation Status, Log Decision, Semantic Knowledge Search, Add Knowledge Document, Call Subagent | `platform.core.execute_esql`, `platform.core.generate_esql`, `security.alerts`, `websearch.web_search`, `websearch.fetch_webpage` | kb-detection-rules, kb-ecs-schema, kb-mitre-attack |
-| 3 | **Threat Intelligence Agent** | VT File Hash Report, VT File Upload, VT URL Scan, VT URL Report, VT Domain Report, VT IP Report, IP Reputation Check, Semantic Knowledge Search, Add Knowledge Document | `websearch.web_search`, `websearch.fetch_webpage` | kb-threat-intel, kb-ioc-history |
-| 4 | **Security Analyst Agent** | Semantic Knowledge Search, Tag Alert as True Positive, Tag Alert as False Positive, Close Alert, Acknowledge Alert, Create Case, Create Alert Note, Create Investigation, Get Investigation, Update Investigation Status, Add Evidence, Propose Action, Search Similar Investigations, Record Incident Resolution, Check Action Policy, Log Decision, Request Approval, Add Knowledge Document, Call Subagent | `security.alerts` | kb-incidents, kb-playbooks |
-| 5 | **Forensics Agent** | Execute Command on Endpoint, Execute and Retrieve, Get Action Status, Create Investigation, Get Investigation, Update Investigation Status, Add Evidence, Propose Action, Check Action Policy, Log Decision, Request Approval, Semantic Knowledge Search, Add Knowledge Document, VT File Hash Report, VT IP Report, Call Subagent | `platform.core.execute_esql`, `security.alerts` | kb-forensics |
-| 6 | **Compliance Agent** | Semantic Knowledge Search, Add Knowledge Document, Call Subagent | `platform.core.search`, `websearch.web_search`, `websearch.fetch_webpage` | kb-compliance |
-| 7 | **SOC Operations Agent** | Semantic Knowledge Search, Add Knowledge Document, Update Knowledge Document, Remove Knowledge Document, Check Knowledge Staleness, Call Subagent | `platform.core.cases`, `security.alerts` | kb-soc-ops, kb-runbooks |
+| # | Agent Name | Tools | Workflow Tools | Built-in / MCP Tools | Knowledge Bases |
+|---|-----------|-------|---------------|----------------------|-----------------|
+| 1 | **Security Mesh Orchestrator** | 2 | Call Subagent | — | *None* |
+| 2 | **Detection Engineering Agent** | 21 | List Detection Rules, Get Rule Details, Create Detection Rule, Enable/Disable Rule, Search Rules by MITRE Technique, Evaluate MITRE Coverage, Check Field Availability, Check Action Policy, Create Investigation, Add Evidence, Get Investigation, Update Investigation Status, Log Decision, Semantic Knowledge Search, Add Knowledge Document, Call Subagent | `platform.core.execute_esql`, `platform.core.generate_esql`, `security.alerts`, `websearch.web_search`, `websearch.fetch_webpage` | kb-detection-rules, kb-ecs-schema, kb-mitre-attack |
+| 3 | **Threat Intelligence Agent** | 11 | VT File Hash Report, VT File Upload, VT URL Scan, VT URL Report, VT Domain Report, VT IP Report, IP Reputation Check, Semantic Knowledge Search, Add Knowledge Document | `websearch.web_search`, `websearch.fetch_webpage` | kb-threat-intel, kb-ioc-history |
+| 4 | **L1 Triage Analyst** | 14 | Semantic Knowledge Search, Tag Alert as True Positive, Tag Alert as False Positive, Close Alert, Acknowledge Alert, Create Case, Get Case Details, Add Alert to Case, Create Alert Note, Check Action Policy, Log Decision, Call Subagent | `security.alerts` | kb-incidents, kb-playbooks |
+| 5 | **L2 Investigation Analyst** | 19 | Semantic Knowledge Search, Create Case, Update Case, Add Case Comment, Get Case Details, Add Alert to Case, Create Investigation, Get Investigation, Update Investigation Status, Add Evidence, Search Similar Investigations, Record Incident Resolution, Add Knowledge Document, Check Action Policy, Log Decision, Request Approval, Call Subagent | `security.alerts` | kb-incidents, kb-playbooks |
+| 6 | **Forensics Agent** | 18 | Execute Command on Endpoint, Execute and Retrieve, Get Action Status, Create Investigation, Get Investigation, Update Investigation Status, Add Evidence, Propose Action, Check Action Policy, Log Decision, Request Approval, Semantic Knowledge Search, Add Knowledge Document, VT File Hash Report, VT IP Report, Call Subagent | `platform.core.execute_esql`, `security.alerts` | kb-forensics |
+| 7 | **Compliance Agent** | 6 | Semantic Knowledge Search, Add Knowledge Document, Call Subagent | `platform.core.search`, `websearch.web_search`, `websearch.fetch_webpage` | kb-compliance |
+| 8 | **SOC Operations Agent** | 9 | Semantic Knowledge Search, Add Knowledge Document, Update Knowledge Document, Remove Knowledge Document, Check Knowledge Staleness, Call Subagent | `platform.core.cases`, `security.alerts` | kb-soc-ops, kb-runbooks |
 
 For each agent, copy the `system_instructions` from the corresponding file in `agents/definitions/`. These contain the agent's persona, principles, and behavioural guidance.
 
@@ -303,15 +305,25 @@ The registry entries below are created automatically. They're documented here fo
 | description | Enriches indicators of compromise (file hashes, IPs, domains, URLs) across VirusTotal, AbuseIPDB, and web search. Researches threat actors, campaigns, and malware families. Maintains a history of investigated IOCs. |
 | keywords | IOC, threat, intelligence, VirusTotal, hash, IP, domain, reputation, malware, threat actor, campaign, enrichment |
 
-**Security Analyst:**
+**L1 Triage Analyst:**
 | Field | Value |
 |-------|-------|
 | agent_id | *paste from Agent Builder* |
-| agent_name | Security Analyst Agent |
+| agent_name | L1 Triage Analyst |
 | domain | triage |
-| capabilities | alert_triage, incident_investigation, playbook_execution, escalation, case_management |
-| description | Triages security alerts and investigates incidents. Searches past incident resolutions for similar patterns, follows SOC playbooks, enriches indicators, and manages alert lifecycle (tag, close, acknowledge, create cases). Escalates to forensics or other specialists when deep investigation is needed. |
-| keywords | alert, triage, investigation, incident, case, playbook, escalate, true positive, false positive, SOC |
+| capabilities | alert_triage, alert_classification, case_creation, alert_to_case_linking, playbook_execution, escalation |
+| description | First-line alert triage analyst. Classifies alerts quickly using playbooks and historical incident data, manages alert lifecycle (tag as TP/FP, close, acknowledge), creates cases when warranted, links related alerts to cases, and escalates complex investigations to the L2 Investigation Analyst. |
+| keywords | alert, triage, classify, true positive, false positive, acknowledge, close alert, create case, playbook, escalate, L1, first responder |
+
+**L2 Investigation Analyst:**
+| Field | Value |
+|-------|-------|
+| agent_id | *paste from Agent Builder* |
+| agent_name | L2 Investigation Analyst |
+| domain | investigation |
+| capabilities | incident_investigation, case_management, case_update, case_severity_change, alert_to_case_linking, evidence_collection, cross_agent_coordination, knowledge_capture |
+| description | Deep investigation analyst handling complex incidents. Full case lifecycle management: create, update status/severity, add comments, link alerts, and retrieve case details. Creates and manages investigation contexts, collects evidence, coordinates with forensics and threat intelligence, and captures resolutions as knowledge. |
+| keywords | investigation, incident, case, case update, case severity, case status, evidence, escalate severity, link alert, deep dive, L2, complex incident |
 
 **Forensics:**
 | Field | Value |
@@ -407,7 +419,8 @@ elastic-security-agent/
 │   │   ├── orchestrator.yaml
 │   │   ├── detection-engineering.yaml
 │   │   ├── threat-intelligence.yaml
-│   │   ├── security-analyst.yaml
+│   │   ├── l1-triage-analyst.yaml
+│   │   ├── l2-investigation-analyst.yaml
 │   │   ├── forensics.yaml
 │   │   ├── compliance.yaml
 │   │   └── soc-operations.yaml

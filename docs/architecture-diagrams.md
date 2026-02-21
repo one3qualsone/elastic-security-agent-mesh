@@ -33,7 +33,8 @@ graph TB
     subgraph "Layer 2 — Specialist Agents"
         DE[Detection Engineering]
         TI[Threat Intelligence]
-        SA[Security Analyst]
+        L1[L1 Triage Analyst]
+        L2[L2 Investigation Analyst]
         FO[Forensics]
         CO[Compliance]
         SO[SOC Operations]
@@ -67,9 +68,9 @@ graph TB
         FL3[Incident Learning]
     end
 
-    ORCH -->|semantic routing| DE & TI & SA & FO & CO & SO
-    DE & TI & SA & FO & CO & SO --> ENR & SRC & CAS & VT & ALR & GOV & INV
-    DE & TI & SA & FO & CO & SO --> KB
+    ORCH -->|semantic routing| DE & TI & L1 & L2 & FO & CO & SO
+    DE & TI & L1 & L2 & FO & CO & SO --> ENR & SRC & CAS & VT & ALR & GOV & INV
+    DE & TI & L1 & L2 & FO & CO & SO --> KB
     INV --> IC
     GOV --> AP
     FL1 & FL2 --> KB
@@ -78,7 +79,8 @@ graph TB
     style ORCH fill:#0077CC,color:#fff
     style DE fill:#00BFB3,color:#fff
     style TI fill:#00BFB3,color:#fff
-    style SA fill:#00BFB3,color:#fff
+    style L1 fill:#00BFB3,color:#fff
+    style L2 fill:#00BFB3,color:#fff
     style FO fill:#00BFB3,color:#fff
     style CO fill:#00BFB3,color:#fff
     style SO fill:#00BFB3,color:#fff
@@ -100,7 +102,8 @@ graph LR
     ORCH[Orchestrator]
     DE[Detection<br/>Engineering]
     TI[Threat<br/>Intelligence]
-    SA[Security<br/>Analyst]
+    L1[L1 Triage<br/>Analyst]
+    L2[L2 Investigation<br/>Analyst]
     FO[Forensics]
     CO[Compliance]
     SO[SOC Ops]
@@ -110,14 +113,16 @@ graph LR
 
     ORCH ==>|route| DE
     ORCH ==>|route| TI
-    ORCH ==>|route| SA
+    ORCH ==>|route| L1
+    ORCH ==>|route| L2
     ORCH ==>|route| FO
     ORCH ==>|route| CO
     ORCH ==>|route| SO
 
-    SA -->|"enrich IOC"| TI
-    SA -->|"deep investigation"| FO
-    SA -->|"create rule"| DE
+    L1 -->|"escalate complex"| L2
+    L2 -->|"enrich IOC"| TI
+    L2 -->|"deep investigation"| FO
+    L2 -->|"create rule"| DE
     DE -->|"check coverage"| TI
     FO -->|"notify team"| SO
 
@@ -185,7 +190,8 @@ sequenceDiagram
     participant Triage as Triage Workflow
     participant IC as investigation-contexts
     participant Registry as agent-registry
-    participant Analyst as Security Analyst Agent
+    participant L1 as L1 Triage Analyst
+    participant L2 as L2 Investigation Analyst
     participant TI as Threat Intel Agent
     participant Gov as Governance Workflows
     participant AP as action-policies
@@ -194,30 +200,34 @@ sequenceDiagram
 
     Alert->>Triage: Alert triggers workflow
     Triage->>IC: Create investigation context
-    Triage->>Registry: Search for analyst agent
-    Registry-->>Triage: Return analyst agent ID
-    Triage->>Analyst: Invoke with alert details
+    Triage->>Registry: Search for triage agent
+    Registry-->>Triage: Return L1 agent ID
+    Triage->>L1: Invoke with alert details
 
-    Analyst->>IC: Add initial triage evidence
-    Analyst->>TI: Request IOC enrichment
+    L1->>IC: Add initial triage evidence
+    L1->>L1: Classify alert (TP/FP)
+    Note over L1: Complex incident — escalate to L2
+    L1->>L2: Escalate with triage context
+
+    L2->>TI: Request IOC enrichment
     TI->>IC: Add enrichment evidence
-    TI-->>Analyst: Return enrichment results
+    TI-->>L2: Return enrichment results
 
-    Analyst->>Gov: check-action-policy("isolate_host")
+    L2->>Gov: check-action-policy("isolate_host")
     Gov->>AP: Look up policy
     AP-->>Gov: tier_2, requires_approval: true
-    Gov-->>Analyst: Approval required
+    Gov-->>L2: Approval required
 
-    Analyst->>IC: Add to pending_actions
-    Analyst->>Gov: request-approval
+    L2->>IC: Add to pending_actions
+    L2->>Gov: request-approval
     Gov->>Cases: Create approval case
     Note over Cases: Human reviews and approves in Kibana
 
-    Analyst->>Gov: log-decision (approved)
+    L2->>Gov: log-decision (approved)
     Gov->>IC: Record in actions_taken
 
-    Analyst->>Cases: Create case with evidence
-    Analyst->>IC: Update status → resolved
+    L2->>Cases: Create case with evidence
+    L2->>IC: Update status → resolved
 
     Note over IC,KB: On resolution
     IC->>KB: record-incident-resolution
@@ -234,7 +244,7 @@ State transitions and which agents/workflows interact at each stage.
 stateDiagram-v2
     [*] --> open: Triage workflow creates context
 
-    open --> investigating: Analyst agent assigned
+    open --> investigating: L1 or L2 agent assigned
     investigating --> investigating: Evidence added by any agent
     investigating --> escalated: Tier 2 action proposed
     escalated --> investigating: Approval granted, action taken
@@ -353,11 +363,11 @@ flowchart LR
         IC[investigation-contexts<br/>status: resolved]
         RES[record-incident-resolution.yaml<br/>On resolution]
         KB3[(kb-incidents)]
-        SA[All agents<br/>search for similar cases]
+        AGS[All agents<br/>search for similar cases]
 
         IC -->|"capture"| RES
         RES -->|"write outcome"| KB3
-        KB3 -->|"semantic search"| SA
+        KB3 -->|"semantic search"| AGS
     end
 
     style AQ1 fill:#F04E98,color:#fff
@@ -451,7 +461,8 @@ flowchart TD
     subgraph "Agents (Consumers & Producers)"
         DE[Detection Engineering]
         TI[Threat Intelligence]
-        SA[Security Analyst]
+        L1[L1 Triage Analyst]
+        L2[L2 Investigation Analyst]
         FO[Forensics]
         CO[Compliance]
         SO[SOC Operations]
@@ -489,7 +500,7 @@ flowchart TD
         E5["multilingual-e5-small<br/>inference endpoint"]
     end
 
-    DE & TI & SA & FO & CO & SO --> SEARCH & ADD & UPD
+    DE & TI & L1 & L2 & FO & CO & SO --> SEARCH & ADD & UPD
     SEARCH --> KB_DR & KB_ECS & KB_MITRE & KB_TI & KB_IOC & KB_INC & KB_PB & KB_FOR & KB_COMP & KB_OPS & KB_RUN
     ADD & UPD --> KB_DR & KB_ECS & KB_MITRE & KB_TI & KB_IOC & KB_INC & KB_PB & KB_FOR & KB_COMP & KB_OPS & KB_RUN
 
