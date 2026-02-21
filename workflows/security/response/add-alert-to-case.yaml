@@ -1,0 +1,64 @@
+# =============================================================================
+# Workflow: Add Alert to Case
+# Category: security/response
+#
+# Attaches a security alert to an existing case, linking the alert for
+# consolidated investigation and timeline tracking. Supports attaching
+# multiple alerts to a single case for incident correlation.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Add Alert to Case
+description: Attach a security alert to an existing case for consolidated tracking.
+enabled: true
+
+tags:
+  - agent-mesh
+  - response
+  - cases
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: case_id
+    type: string
+    description: "The case ID to attach the alert to"
+    required: true
+  - name: alert_id
+    type: string
+    description: "The alert ID to attach"
+    required: true
+  - name: rule_id
+    type: string
+    description: "The detection rule ID that generated the alert"
+    required: false
+  - name: rule_name
+    type: string
+    description: "The detection rule name that generated the alert"
+    required: false
+
+steps:
+
+  - name: attach_alert
+    type: http
+    with:
+      method: POST
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/cases/{{ inputs.case_id }}/comments"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+      body:
+        type: "alert"
+        alertId: "{{ inputs.alert_id }}"
+        index: ".alerts-security.alerts-default"
+        rule:
+          id: "{{ inputs.rule_id | default: 'unknown' }}"
+          name: "{{ inputs.rule_name | default: 'unknown' }}"
+        owner: "securitySolution"
+
+  - name: confirm
+    type: console
+    with:
+      message: "Alert {{ inputs.alert_id }} attached to case {{ inputs.case_id }}"

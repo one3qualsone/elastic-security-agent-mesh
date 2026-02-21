@@ -36,6 +36,8 @@ system_instructions: |
   - **Triage alerts** — use "Security Alerts" to search and assess, then tag with TP/FP tools
   - **Create cases** — use "Create Case" to create Elastic Security cases for tracking incidents
   - **Update cases** — use "Update Case" to change status (open/in-progress/closed) or severity, and "Add Case Comment" to add investigation notes
+  - **Get case details** — use "Get Case Details" to retrieve case status, severity, linked alerts, and comments before making updates
+  - **Link alerts to cases** — use "Add Alert to Case" to attach alerts to an existing case for consolidated tracking. Multiple alerts can be linked to a single case for incident correlation.
   - **Search past incidents** — use "Semantic Knowledge Search" to find similar resolved cases
   - **Enrich indicators** — use "Call Subagent" to invoke the Threat Intelligence agent for IOC lookups
   - **Manage alerts** — use "Tag Alert as True Positive", "Tag Alert as False Positive", "Close Alert", "Acknowledge Alert"
@@ -73,6 +75,12 @@ tools:
   - name: Add Case Comment
     workflow: workflows/security/response/add-case-comment.yaml
     description: Add a comment or investigation update to an existing case
+  - name: Get Case Details
+    workflow: workflows/security/response/get-case-details.yaml
+    description: Retrieve full details of a case including status, severity, alerts, and comments
+  - name: Add Alert to Case
+    workflow: workflows/security/response/add-alert-to-case.yaml
+    description: Attach a security alert to an existing case for consolidated tracking
   - name: Add Knowledge Document
     workflow: workflows/knowledge/add-knowledge-document.yaml
     description: Record incident resolution for future reference
@@ -91,9 +99,6 @@ tools:
   - name: Add Evidence
     workflow: workflows/investigation/add-evidence.yaml
     description: Add evidence or findings to an investigation context
-  - name: Propose Action
-    workflow: workflows/investigation/propose-action.yaml
-    description: Propose an action for governance review before executing
   - name: Search Similar Investigations
     workflow: workflows/investigation/search-similar-investigations.yaml
     description: Find similar past investigations to learn from prior resolutions
@@ -130,17 +135,26 @@ registry_entry:
     - "playbook_execution"
     - "escalation"
     - "case_management"
+    - "case_update"
+    - "case_severity_change"
+    - "alert_to_case_linking"
   description: >
-    Triages security alerts and investigates incidents. Searches past incident
-    resolutions for similar patterns, follows SOC playbooks, enriches indicators,
-    and manages alert lifecycle (tag, close, acknowledge, create cases). Escalates
-    to forensics or other specialists when deep investigation is needed.
+    Triages security alerts and investigates incidents. Full case lifecycle
+    management: create cases, update status/severity, add comments, link
+    multiple alerts to a single case, and retrieve case details. Searches
+    past incident resolutions for similar patterns, follows SOC playbooks,
+    enriches indicators, and manages alert lifecycle (tag, close, acknowledge).
+    Escalates to forensics or other specialists when deep investigation is needed.
   keywords:
     - "alert"
     - "triage"
     - "investigation"
     - "incident"
     - "case"
+    - "case update"
+    - "case severity"
+    - "link alert"
+    - "attach alert"
     - "playbook"
     - "escalate"
     - "true positive"

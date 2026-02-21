@@ -1,0 +1,53 @@
+# =============================================================================
+# Workflow: Get Case Details
+# Category: security/response
+#
+# Retrieves full details of an Elastic Security case including status,
+# severity, description, comments count, and linked alerts.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Get Case Details
+description: Get the full details of a case by its ID.
+enabled: true
+
+tags:
+  - agent-mesh
+  - response
+  - cases
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: case_id
+    type: string
+    description: "The case ID to retrieve"
+    required: true
+
+steps:
+
+  - name: get_case
+    type: http
+    with:
+      method: GET
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/cases/{{ inputs.case_id }}"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+
+  - name: output_details
+    type: console
+    with:
+      message: |
+        Case: {{ steps.get_case.output.data.title }}
+        ID: {{ steps.get_case.output.data.id }}
+        Status: {{ steps.get_case.output.data.status }}
+        Severity: {{ steps.get_case.output.data.severity }}
+        Owner: {{ steps.get_case.output.data.owner }}
+        Created: {{ steps.get_case.output.data.created_at }}
+        Updated: {{ steps.get_case.output.data.updated_at }}
+        Comments: {{ steps.get_case.output.data.totalComment }}
+        Alerts: {{ steps.get_case.output.data.totalAlerts }}
+        Tags: {{ steps.get_case.output.data.tags | join: ", " }}
+        Description: {{ steps.get_case.output.data.description }}
