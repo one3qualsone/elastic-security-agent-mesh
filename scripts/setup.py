@@ -850,12 +850,18 @@ def create_tools(workflow_name_to_id):
     return tool_name_to_id
 
 
+MANUALLY_CREATED_TOOLS = {"security-mesh.agent-registry"}
+
+
 def delete_tools():
     """Delete all security-mesh tools from Agent Builder.
 
     Uses a two-pass strategy:
       1. Compute expected tool IDs from agent definitions and delete by ID.
       2. List tools from the API and delete any remaining security-mesh.* tools.
+
+    Tools in MANUALLY_CREATED_TOOLS are preserved (they require UI creation
+    and would be lost on redeploy).
     """
     print("=== Deleting Security Mesh Tools ===\n")
 
@@ -873,7 +879,8 @@ def delete_tools():
     deleted = 0
     errors = 0
 
-    print(f"  Pass 1: deleting {len(expected_ids)} known tool IDs...")
+    expected_ids -= MANUALLY_CREATED_TOOLS
+    print(f"  Pass 1: deleting {len(expected_ids)} known tool IDs (preserving {len(MANUALLY_CREATED_TOOLS)} manual tools)...")
     for tool_id in sorted(expected_ids):
         del_resp = requests.delete(
             f"{base_url}/api/agent_builder/tools/{tool_id}",
@@ -902,7 +909,9 @@ def delete_tools():
                     break
         remaining = [
             t for t in tools_list
-            if isinstance(t, dict) and t.get("id", "").startswith("security-mesh")
+            if isinstance(t, dict)
+            and t.get("id", "").startswith("security-mesh")
+            and t.get("id", "") not in MANUALLY_CREATED_TOOLS
         ]
         for tool in remaining:
             tool_id = tool.get("id", "")
