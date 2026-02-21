@@ -20,13 +20,17 @@ steps:
   - name: debug_inputs
     type: console
     with:
-      message: "Calling agent={{ inputs.agent_id }} connector=__LLM_CONNECTOR_ID__"
+      message: "Calling agent={{ inputs.agent_id }}"
 
   - name: converse_with_agent
-    type: kibana.request
+    type: http
     with:
       method: POST
-      path: /api/agent_builder/converse
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/agent_builder/converse"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
       body:
         agent_id: "{{ inputs.agent_id }}"
         connector_id: "__LLM_CONNECTOR_ID__"

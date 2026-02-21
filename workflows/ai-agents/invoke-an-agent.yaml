@@ -13,11 +13,15 @@ steps:
     with:
       message: "Alert event received, invoking triage agent"
 
-  - name: kibana_post_agent_builder_converse_step
-    type: kibana.request
+  - name: invoke_triage_agent
+    type: http
     with:
       method: POST
-      path: /api/agent_builder/converse
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/agent_builder/converse"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
       body:
         agent_id: alert.triage
         connector_id: "__LLM_CONNECTOR_ID__"
