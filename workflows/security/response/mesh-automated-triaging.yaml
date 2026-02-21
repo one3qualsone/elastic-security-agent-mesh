@@ -123,22 +123,22 @@ steps:
                 agent_id: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
                 connector_id: "__LLM_CONNECTOR_ID__"
                 input: |
-                Triage this security alert. Investigation document ID: {{ steps.create_investigation.output._id }}
+                  Triage this security alert. Investigation document ID: {{ steps.create_investigation.output._id }}
 
-                Alert Rule: {{ foreach.item.kibana.alert.rule.name }}
-                Alert ID: {{ foreach.item._id }}
-                Severity: {{ foreach.item.kibana.alert.severity }}
-                Risk Score: {{ foreach.item.kibana.alert.risk_score }}
+                  Alert Rule: {{ foreach.item.kibana.alert.rule.name }}
+                  Alert ID: {{ foreach.item._id }}
+                  Severity: {{ foreach.item.kibana.alert.severity }}
+                  Risk Score: {{ foreach.item.kibana.alert.risk_score }}
 
-                Alert details:
-                {{ foreach.item | json }}
+                  Alert details:
+                  {{ foreach.item | json }}
 
-                Instructions:
-                1. Analyse the alert and determine if it is a true positive or false positive
-                2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents)
-                3. Add your findings as evidence to investigation {{ steps.create_investigation.output._id }}
-                4. If true positive: tag the alert, create a case, and escalate to forensics if needed
-                5. If false positive: tag the alert, close it, and document why
+                  Instructions:
+                  1. Analyse the alert and determine if it is a true positive or false positive
+                  2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents)
+                  3. Add your findings as evidence to investigation {{ steps.create_investigation.output._id }}
+                  4. If true positive: tag the alert, create a case, and escalate to forensics if needed
+                  5. If false positive: tag the alert, close it, and document why
             timeout: 600s
 
           - name: log_analyst_response
