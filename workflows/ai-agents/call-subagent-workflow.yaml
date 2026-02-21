@@ -5,9 +5,6 @@ enabled: true
 triggers:
   - type: manual
 
-consts:
-  connector_id: "__LLM_CONNECTOR_ID__"
-
 inputs:
   - name: agent_id
     type: string
@@ -23,17 +20,20 @@ steps:
   - name: debug_inputs
     type: console
     with:
-      message: "Calling agent_id={{ inputs.agent_id }} with connector={{ consts.connector_id }}"
+      message: "Calling agent={{ inputs.agent_id }} connector=__LLM_CONNECTOR_ID__"
 
   - name: converse_with_agent
-    type: kibana.post_agent_builder_converse
+    type: kibana.request
     with:
-      agent-id: "{{ inputs.agent_id }}"
-      connector-id: "{{ consts.connector_id }}"
-      input: "{{ inputs.question }}"
+      method: POST
+      path: /api/agent_builder/converse
+      body:
+        agent_id: "{{ inputs.agent_id }}"
+        connector_id: "__LLM_CONNECTOR_ID__"
+        input: "{{ inputs.question }}"
     timeout: 600s
 
   - name: filter_output
     type: console
     with:
-      message: "{{ steps.converse_with_agent.output.response.message }}"
+      message: "{{ steps.converse_with_agent.output.data.response.message }}"
