@@ -3,10 +3,8 @@
 # Category: security/detection
 #
 # Creates a new detection rule via the Kibana Detection Engine API.
-# Rules are created DISABLED by default (Tier 1 governance) — enabling
-# in production requires separate approval via enable-disable-rule.yaml.
-#
-# Supports ES|QL, KQL (custom query), threshold, EQL, and new terms types.
+# Rules are created DISABLED by default (Tier 1 governance).
+# Uses explicit HTTP auth for subagent chain reliability.
 #
 # Author: Security Agent Mesh
 # =============================================================================
@@ -74,10 +72,14 @@ inputs:
 steps:
 
   - name: create_rule
-    type: kibana.request
+    type: http
     with:
       method: POST
-      path: /api/detection_engine/rules
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
       body:
         name: "{{ inputs.name }}"
         description: "{{ inputs.description }}"
@@ -103,4 +105,3 @@ steps:
         Type: {{ steps.create_rule.output.data.type }}
         Severity: {{ steps.create_rule.output.data.severity }}
         Note: Rule is disabled by default. Use enable-disable-rule workflow to activate after review.
-

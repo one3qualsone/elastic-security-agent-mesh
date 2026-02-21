@@ -3,8 +3,7 @@
 # Category: security/detection
 #
 # Lists detection rules from the Kibana Detection Engine API with optional
-# filtering by enabled status, tags, or search query. Returns paginated
-# results with rule name, ID, enabled status, severity, and MITRE mappings.
+# filtering. Uses explicit HTTP auth for subagent chain reliability.
 #
 # Author: Security Agent Mesh
 # =============================================================================
@@ -44,14 +43,16 @@ inputs:
 steps:
 
   - name: list_rules
-    type: kibana.request
+    type: http
     with:
       method: GET
-      path: "/api/detection_engine/rules/_find?page={{ inputs.page }}&per_page={{ inputs.per_page }}&sort_field={{ inputs.sort_field }}&sort_order={{ inputs.sort_order }}"
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules/_find?page={{ inputs.page }}&per_page={{ inputs.per_page }}&sort_field={{ inputs.sort_field }}&sort_order={{ inputs.sort_order }}"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
 
   - name: output_summary
     type: console
     with:
       message: |
         Found {{ steps.list_rules.output.data.total }} rules (showing page {{ inputs.page }}, {{ inputs.per_page }} per page)
-

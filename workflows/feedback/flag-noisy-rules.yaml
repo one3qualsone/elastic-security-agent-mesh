@@ -79,10 +79,14 @@ steps:
       continue: true
 
   - name: write_noisy_rules_report
-    type: elasticsearch.index
+    type: http
     with:
-      index: "{{ consts.kb_index }}"
-      document:
+      method: POST
+      url: "__ES_URL__/{{ consts.kb_index }}/_doc"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __ES_API_KEY__"
+      body:
         title: "Noisy Rules Report — {{ 'now' | date: '%Y-%m-%d' }}"
         content: |
           Automated noise analysis for the last {{ inputs.lookback_days }} days.

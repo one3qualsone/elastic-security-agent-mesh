@@ -42,10 +42,14 @@ steps:
     steps:
 
       - name: create_investigation
-        type: elasticsearch.index
+        type: http
         with:
-          index: "{{ consts.investigation_index }}"
-          document:
+          method: POST
+          url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_doc"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
+          body:
             investigation_id: "inv-{{ foreach.item._id }}"
             title: "Alert Triage: {{ foreach.item.kibana.alert.rule.name }}"
             trigger_type: "alert"
@@ -100,7 +104,7 @@ steps:
             type: http
             with:
               method: POST
-              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output.data._id }}"
               headers:
                 Content-Type: application/json
                 Authorization: "ApiKey {{ consts.es_api_key }}"
@@ -123,7 +127,7 @@ steps:
                 agent_id: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
                 connector_id: "__LLM_CONNECTOR_ID__"
                 input: |
-                  Triage this security alert. Investigation document ID: {{ steps.create_investigation.output._id }}
+                  Triage this security alert. Investigation document ID: {{ steps.create_investigation.output.data._id }}
 
                   Alert Rule: {{ foreach.item.kibana.alert.rule.name }}
                   Alert ID: {{ foreach.item._id }}
@@ -136,7 +140,7 @@ steps:
                   Instructions:
                   1. Analyse the alert and determine if it is a true positive or false positive
                   2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents)
-                  3. Add your findings as evidence to investigation {{ steps.create_investigation.output._id }}
+                  3. Add your findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
                   4. If true positive: tag the alert, create a case, and escalate to forensics if needed
                   5. If false positive: tag the alert, close it, and document why
             timeout: 600s
@@ -150,7 +154,7 @@ steps:
             type: http
             with:
               method: POST
-              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output.data._id }}"
               headers:
                 Content-Type: application/json
                 Authorization: "ApiKey {{ consts.es_api_key }}"
@@ -182,7 +186,7 @@ steps:
             type: http
             with:
               method: POST
-              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output._id }}"
+              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output.data._id }}"
               headers:
                 Content-Type: application/json
                 Authorization: "ApiKey {{ consts.es_api_key }}"

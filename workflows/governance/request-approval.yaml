@@ -49,44 +49,50 @@ inputs:
 steps:
 
   - name: create_approval_case
-    type: kibana.createCaseDefaultSpace
+    type: http
     with:
-      title: "Approval Required: {{ inputs.action_type }} — {{ inputs.target }}"
-      description: |
-        ## Tier 2 Action — Human Approval Required
+      method: POST
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/cases"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+      body:
+        title: "Approval Required: {{ inputs.action_type }} — {{ inputs.target }}"
+        description: |
+          ## Tier 2 Action — Human Approval Required
 
-        | Field | Value |
-        |-------|-------|
-        | **Action** | {{ inputs.action_type }} |
-        | **Target** | {{ inputs.target }} |
-        | **Risk Tier** | {{ inputs.risk_tier }} |
-        | **Recommended by** | {{ inputs.recommending_agent }} |
-        | **Investigation** | {{ inputs.investigation_id | default: 'N/A' }} |
+          | Field | Value |
+          |-------|-------|
+          | **Action** | {{ inputs.action_type }} |
+          | **Target** | {{ inputs.target }} |
+          | **Risk Tier** | {{ inputs.risk_tier }} |
+          | **Recommended by** | {{ inputs.recommending_agent }} |
+          | **Investigation** | {{ inputs.investigation_id | default: 'N/A' }} |
 
-        ### Justification
+          ### Justification
 
-        {{ inputs.justification }}
+          {{ inputs.justification }}
 
-        ---
+          ---
 
-        **To approve:** Add a comment with `APPROVED` and close the case.
-        **To deny:** Add a comment with `DENIED` and the reason, then close the case.
-      owner: securitySolution
-      tags:
-        - governance
-        - tier-2-approval
-        - "{{ inputs.action_type }}"
-      severity: high
-      settings:
-        syncAlerts: false
-      connector:
-        id: none
-        name: none
-        type: .none
-        fields: null
+          **To approve:** Add a comment with `APPROVED` and close the case.
+          **To deny:** Add a comment with `DENIED` and the reason, then close the case.
+        owner: "securitySolution"
+        tags:
+          - governance
+          - tier-2-approval
+          - "{{ inputs.action_type }}"
+        severity: "high"
+        settings:
+          syncAlerts: false
+        connector:
+          id: "none"
+          name: "none"
+          type: ".none"
+          fields: null
 
   - name: confirm
     type: console
     with:
-      message: "Approval case created for {{ inputs.action_type }} targeting {{ inputs.target }} — case ID: {{ steps.create_approval_case.output.id }}"
-
+      message: "Approval case created for {{ inputs.action_type }} targeting {{ inputs.target }} — case ID: {{ steps.create_approval_case.output.data.id }}"

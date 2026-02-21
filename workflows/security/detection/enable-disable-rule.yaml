@@ -2,9 +2,8 @@
 # Workflow: Enable/Disable Detection Rule
 # Category: security/detection
 #
-# Toggles a detection rule's enabled status. Enabling a rule in production
-# is a Tier 2 governance action — agents should check action policy first
-# and request approval if required.
+# Toggles a detection rule's enabled status. Enabling is a Tier 2
+# governance action. Uses explicit HTTP auth for subagent chain reliability.
 #
 # Author: Security Agent Mesh
 # =============================================================================
@@ -32,10 +31,14 @@ inputs:
 steps:
 
   - name: toggle_rule
-    type: kibana.request
+    type: http
     with:
       method: PATCH
-      path: /api/detection_engine/rules
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
       body:
         rule_id: "{{ inputs.rule_id }}"
         enabled: "{{ inputs.enabled }}"
@@ -46,4 +49,3 @@ steps:
       message: |
         Rule {{ inputs.rule_id }}: {% if inputs.enabled %}ENABLED{% else %}DISABLED{% endif %}
         Name: {{ steps.toggle_rule.output.data.name }}
-

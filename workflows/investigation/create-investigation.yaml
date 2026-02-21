@@ -56,10 +56,14 @@ steps:
       message: "{{ 'now' | date: '%s%N' }}"
 
   - name: create_context
-    type: elasticsearch.index
+    type: http
     with:
-      index: "{{ consts.index_name }}"
-      document:
+      method: POST
+      url: "__ES_URL__/{{ consts.index_name }}/_doc"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __ES_API_KEY__"
+      body:
         investigation_id: "inv-{{ steps.generate_id.output }}"
         title: "{{ inputs.title }}"
         trigger_type: "{{ inputs.trigger_type }}"
@@ -79,4 +83,4 @@ steps:
   - name: confirm
     type: console
     with:
-      message: "Investigation created: {{ inputs.title }} (doc ID: {{ steps.create_context.output._id }})"
+      message: "Investigation created: {{ inputs.title }} (doc ID: {{ steps.create_context.output.data._id }})"

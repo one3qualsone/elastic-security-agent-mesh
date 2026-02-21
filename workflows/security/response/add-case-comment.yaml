@@ -1,0 +1,51 @@
+# =============================================================================
+# Workflow: Add Case Comment
+# Category: security/response
+#
+# Adds a comment to an existing Elastic Security case. Used for documenting
+# investigation findings, analyst notes, or status updates.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Add Case Comment
+description: Add a comment to an existing case.
+enabled: true
+
+tags:
+  - agent-mesh
+  - response
+  - cases
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: case_id
+    type: string
+    description: "The case ID to add a comment to"
+    required: true
+  - name: comment
+    type: string
+    description: "The comment text to add"
+    required: true
+
+steps:
+
+  - name: add_comment
+    type: http
+    with:
+      method: POST
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/cases/{{ inputs.case_id }}/comments"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+      body:
+        type: "user"
+        comment: "{{ inputs.comment }}"
+        owner: "securitySolution"
+
+  - name: confirm
+    type: console
+    with:
+      message: "Comment added to case {{ inputs.case_id }}"

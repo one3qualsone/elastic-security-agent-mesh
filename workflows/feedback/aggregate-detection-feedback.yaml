@@ -97,10 +97,14 @@ steps:
             size: 500
 
   - name: write_feedback_summary
-    type: elasticsearch.index
+    type: http
     with:
-      index: "{{ consts.kb_index }}"
-      document:
+      method: POST
+      url: "__ES_URL__/{{ consts.kb_index }}/_doc"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __ES_API_KEY__"
+      body:
         title: "Detection Feedback Summary — {{ 'now' | date: '%Y-%m-%d' }}"
         content: |
           Automated detection quality feedback aggregated over the last {{ inputs.lookback_days }} days.

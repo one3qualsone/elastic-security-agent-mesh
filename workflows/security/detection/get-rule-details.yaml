@@ -2,9 +2,9 @@
 # Workflow: Get Rule Details
 # Category: security/detection
 #
-# Retrieves the full definition of a detection rule by its rule_id.
-# Returns query, MITRE mappings, severity, risk score, data sources,
-# and all configuration details.
+# Retrieves the full definition of a detection rule. Accepts either
+# rule_id (slug) or Kibana saved object id (UUID) — tries rule_id first,
+# falls back to id. Uses explicit HTTP auth for subagent chain reliability.
 #
 # Author: Security Agent Mesh
 # =============================================================================
@@ -22,24 +22,48 @@ triggers:
 inputs:
   - name: rule_id
     type: string
-    description: "The rule_id of the detection rule to retrieve"
+    description: "The detection rule_id (slug-style) or Kibana saved object id (UUID). Both formats accepted."
     required: true
 
 steps:
 
-  - name: get_rule
-    type: kibana.request
+  - name: try_by_rule_id
+    type: http
     with:
       method: GET
-      path: "/api/detection_engine/rules?rule_id={{ inputs.rule_id }}"
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules?rule_id={{ inputs.rule_id }}"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+    on-failure:
+      continue: true
+
+  - name: try_by_saved_object_id
+    type: http
+    condition: "{{ steps.try_by_rule_id.error != null }}"
+    with:
+      method: GET
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules?id={{ inputs.rule_id }}"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+    on-failure:
+      continue: true
 
   - name: output_rule
     type: console
     with:
       message: |
-        Rule: {{ steps.get_rule.output.data.name }}
-        Type: {{ steps.get_rule.output.data.type }}
-        Enabled: {{ steps.get_rule.output.data.enabled }}
-        Severity: {{ steps.get_rule.output.data.severity }}
-        Risk Score: {{ steps.get_rule.output.data.risk_score }}
-
+        {% assign rule = steps.try_by_saved_object_id.output.data | default: steps.try_by_rule_id.output.data %}
+        Rule: {{ rule.name }}
+        Rule ID: {{ rule.rule_id }}
+        Saved Object ID: {{ rule.id }}
+        Type: {{ rule.type }}
+        Enabled: {{ rule.enabled }}
+        Severity: {{ rule.severity }}
+        Risk Score: {{ rule.risk_score }}
+        Description: {{ rule.description }}
+        Query: {{ rule.query }}
+        Language: {{ rule.language }}
+        Index: {{ rule.index }}
+        Tags: {{ rule.tags | join: ", " }}

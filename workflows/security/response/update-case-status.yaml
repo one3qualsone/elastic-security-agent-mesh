@@ -1,0 +1,69 @@
+# =============================================================================
+# Workflow: Update Case Status
+# Category: security/response
+#
+# Updates a case's status, severity, or other properties. Fetches the
+# current version first (required for optimistic concurrency), then patches.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Update Case Status
+description: Update a case status, severity, or close a case.
+enabled: true
+
+tags:
+  - agent-mesh
+  - response
+  - cases
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: case_id
+    type: string
+    description: "The case ID to update"
+    required: true
+  - name: status
+    type: string
+    description: "New status: open, in-progress, closed"
+    required: false
+  - name: severity
+    type: string
+    description: "New severity: low, medium, high, critical"
+    required: false
+
+steps:
+
+  - name: get_case
+    type: http
+    with:
+      method: GET
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/cases/{{ inputs.case_id }}"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+
+  - name: update_case
+    type: http
+    with:
+      method: PATCH
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/cases"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+      body:
+        cases:
+          - id: "{{ inputs.case_id }}"
+            version: "{{ steps.get_case.output.data.version }}"
+            status: "{{ inputs.status | default: steps.get_case.output.data.status }}"
+            severity: "{{ inputs.severity | default: steps.get_case.output.data.severity }}"
+
+  - name: confirm
+    type: console
+    with:
+      message: |
+        Case {{ inputs.case_id }} updated.
+        Status: {{ inputs.status | default: 'unchanged' }}
+        Severity: {{ inputs.severity | default: 'unchanged' }}

@@ -59,10 +59,14 @@ steps:
         Authorization: "ApiKey {{ consts.es_api_key }}"
 
   - name: write_incident_knowledge
-    type: elasticsearch.index
+    type: http
     with:
-      index: "{{ consts.kb_index }}"
-      document:
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.kb_index }}/_doc"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
         title: "{{ steps.get_investigation.output.data._source.title }}"
         content: |
           ## Resolution Summary
