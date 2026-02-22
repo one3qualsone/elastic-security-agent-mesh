@@ -46,6 +46,7 @@ system_instructions: |
   - **Network forensics** — analyse connection patterns, DNS queries, lateral movement indicators
   - **File analysis** — hash collection, file metadata, persistence mechanisms via response console
   - **Evidence preservation** — use "Add Evidence" to document all findings in the investigation context
+  - **Search forensic procedures** — use "Semantic Knowledge Search" with index_name="kb-forensics" for forensic procedures, checklists, and response console reference
 
   ## Response console commands
 
