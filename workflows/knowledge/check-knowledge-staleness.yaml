@@ -38,26 +38,35 @@ inputs:
     description: Maximum number of stale documents to return
     default: 50
 
+consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
+
 steps:
 
   - name: find_stale_documents
-    type: elasticsearch.search
+    type: http
     with:
-      index: "{{ inputs.index_name }}"
-      size: "{{ inputs.max_results }}"
-      query:
-        range:
-          "{{ inputs.date_field }}":
-            lte: "now"
+      method: POST
+      url: "{{ consts.es_url }}/{{ inputs.index_name }}/_search"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
+        size: "{{ inputs.max_results }}"
+        query:
+          range:
+            "{{ inputs.date_field }}":
+              lte: "now"
 
   - name: check_results
     type: if
-    condition: steps.find_stale_documents.output.hits.total.value > 0
+    condition: steps.find_stale_documents.output.data.hits.total.value > 0
     steps:
 
       - name: log_stale_documents
         type: foreach
-        foreach: "{{ steps.find_stale_documents.output.hits.hits }}"
+        foreach: "{{ steps.find_stale_documents.output.data.hits.hits }}"
         steps:
           - name: log_stale_doc
             type: console
@@ -67,7 +76,7 @@ steps:
       - name: summary
         type: console
         with:
-          message: "Found {{ steps.find_stale_documents.output.hits.total.value }} stale document(s) in {{ inputs.index_name }}"
+          message: "Found {{ steps.find_stale_documents.output.data.hits.total.value }} stale document(s) in {{ inputs.index_name }}"
 
     else:
 
@@ -75,4 +84,3 @@ steps:
         type: console
         with:
           message: "No stale documents found in {{ inputs.index_name }} (checked field: {{ inputs.date_field }})"
-

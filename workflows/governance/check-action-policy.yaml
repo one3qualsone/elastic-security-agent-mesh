@@ -39,22 +39,29 @@ inputs:
     default: 1
 
 consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
   index_name: "action-policies"
 
 steps:
 
   - name: lookup_policy
-    type: elasticsearch.search
+    type: http
     with:
-      index: "{{ consts.index_name }}"
-      size: 1
-      query:
-        term:
-          action_type: "{{ inputs.action_type }}"
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.index_name }}/_search"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
+        size: 1
+        query:
+          term:
+            action_type: "{{ inputs.action_type }}"
 
   - name: evaluate_policy
     type: if
-    condition: steps.lookup_policy.output.hits.total.value > 0
+    condition: steps.lookup_policy.output.data.hits.total.value > 0
     steps:
 
       - name: policy_found
@@ -62,12 +69,12 @@ steps:
         with:
           message: |
             Policy for {{ inputs.action_type }}:
-            Risk Tier: {{ steps.lookup_policy.output.hits.hits[0]._source.risk_tier }}
-            Requires Approval: {{ steps.lookup_policy.output.hits.hits[0]._source.requires_approval }}
+            Risk Tier: {{ steps.lookup_policy.output.data.hits.hits[0]._source.risk_tier }}
+            Requires Approval: {{ steps.lookup_policy.output.data.hits.hits[0]._source.requires_approval }}
 
       - name: check_tier
         type: if
-        condition: 'steps.lookup_policy.output.hits.hits[0]._source.risk_tier: "tier_0"'
+        condition: 'steps.lookup_policy.output.data.hits.hits[0]._source.risk_tier: "tier_0"'
         steps:
           - name: auto_approve
             type: console
@@ -76,12 +83,12 @@ steps:
         else:
           - name: check_approval_required
             type: if
-            condition: 'steps.lookup_policy.output.hits.hits[0]._source.requires_approval: true'
+            condition: 'steps.lookup_policy.output.data.hits.hits[0]._source.requires_approval: true'
             steps:
               - name: needs_approval
                 type: console
                 with:
-                  message: "DECISION: approval_required — {{ inputs.action_type }} requires explicit approval via {{ steps.lookup_policy.output.hits.hits[0]._source.approval_channel }}"
+                  message: "DECISION: approval_required — {{ inputs.action_type }} requires explicit approval via {{ steps.lookup_policy.output.data.hits.hits[0]._source.approval_channel }}"
             else:
               - name: guarded_approve
                 type: console

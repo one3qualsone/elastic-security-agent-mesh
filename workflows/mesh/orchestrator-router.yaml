@@ -32,41 +32,45 @@ inputs:
     required: true
 
 consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
   registry_index: "agent-registry"
 
 steps:
 
-  # Use semantic search on the registry to find the best agent.
-  # The agent descriptions in the registry are written to match the kinds
-  # of questions each specialist handles.
   - name: find_agent
-    type: elasticsearch.search
+    type: http
     with:
-      index: "{{ consts.registry_index }}"
-      size: 1
-      query:
-        bool:
-          must:
-            - term:
-                status: "active"
-          should:
-            - semantic:
-                field: semantic_description
-                query: "{{ inputs.request }}"
-          minimum_should_match: 1
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.registry_index }}/_search"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
+        size: 1
+        query:
+          bool:
+            must:
+              - term:
+                  status: "active"
+            should:
+              - semantic:
+                  field: semantic_description
+                  query: "{{ inputs.request }}"
+            minimum_should_match: 1
 
   - name: check_agent_found
     type: if
-    condition: steps.find_agent.output.hits.total.value > 0
+    condition: steps.find_agent.output.data.hits.total.value > 0
     steps:
 
       - name: log_routing_decision
         type: console
         with:
           message: |
-            Routing to: {{ steps.find_agent.output.hits.hits[0]._source.agent_name }}
-            Domain: {{ steps.find_agent.output.hits.hits[0]._source.domain }}
-            Score: {{ steps.find_agent.output.hits.hits[0]._score }}
+            Routing to: {{ steps.find_agent.output.data.hits.hits[0]._source.agent_name }}
+            Domain: {{ steps.find_agent.output.data.hits.hits[0]._source.domain }}
+            Score: {{ steps.find_agent.output.data.hits.hits[0]._score }}
 
       - name: invoke_specialist
         type: http
@@ -78,7 +82,7 @@ steps:
             Authorization: "ApiKey __KIBANA_API_KEY__"
             kbn-xsrf: "true"
           body:
-            agent_id: "{{ steps.find_agent.output.hits.hits[0]._source.agent_id }}"
+            agent_id: "{{ steps.find_agent.output.data.hits.hits[0]._source.agent_id }}"
             connector_id: "__LLM_CONNECTOR_ID__"
             input: "{{ inputs.request }}"
         timeout: 600s
@@ -94,4 +98,3 @@ steps:
         type: console
         with:
           message: "No specialist agent matched this request. Please try rephrasing or specify which agent you need."
-

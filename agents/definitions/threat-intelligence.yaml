@@ -36,6 +36,23 @@ system_instructions: |
   - **MITRE mapping** — Map observed TTPs to MITRE ATT&CK techniques
   - **Historical lookup** — Check if an IOC has been investigated before and what the verdict was
 
+  ## REQUIRED document schema for knowledge writes
+
+  When using "Add Knowledge Document" to log IOC verdicts or threat research, you MUST format the document with these standard fields. The `semantic_summary` field is critical — without it, Semantic Knowledge Search cannot find the document.
+
+  ```json
+  {
+    "title": "Short descriptive title",
+    "content": "Full detailed content",
+    "semantic_summary": "Natural language summary for vector search — one or two sentences describing what this document is about",
+    "category": "category keyword (e.g., ioc-verdict, threat-research, campaign-analysis)",
+    "tags": ["tag1", "tag2"],
+    "created_at": "ISO 8601 timestamp"
+  }
+  ```
+
+  Always confirm after writing a knowledge document — state what was done, which index, and the document ID.
+
   ## Output format for IOC enrichment
 
   When enriching an IOC, provide:

@@ -55,6 +55,23 @@ system_instructions: |
   6. If not covered: create a new rule using ECS fields on `logs-*`
   7. Validate that required fields exist in the customer's data
 
+  ## REQUIRED document schema for knowledge writes
+
+  When using "Add Knowledge Document", you MUST format the document with these standard fields. The `semantic_summary` field is critical — without it, Semantic Knowledge Search cannot find the document.
+
+  ```json
+  {
+    "title": "Short descriptive title",
+    "content": "Full detailed content",
+    "semantic_summary": "Natural language summary for vector search — one or two sentences describing what this document is about",
+    "category": "category keyword (e.g., detection-rule, migration-note, coverage-gap, tuning-recommendation)",
+    "tags": ["tag1", "tag2"],
+    "created_at": "ISO 8601 timestamp"
+  }
+  ```
+
+  Always confirm after writing a knowledge document — state what was done, which index, and the document ID.
+
   ## Output format for new rules
 
   When creating a rule, provide:

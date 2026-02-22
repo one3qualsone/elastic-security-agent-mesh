@@ -74,30 +74,40 @@ steps:
           message: "Investigation created for alert {{ foreach.item._id }}: {{ foreach.item.kibana.alert.rule.name }}"
 
       - name: get_alert_details
-        type: elasticsearch.search
+        type: http
         with:
-          index: "{{ consts.alerts_index }}"
-          size: 1
-          query:
-            match:
-              _id: "{{ foreach.item._id }}"
+          method: POST
+          url: "{{ consts.es_url }}/{{ consts.alerts_index }}/_search"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
+          body:
+            size: 1
+            query:
+              match:
+                _id: "{{ foreach.item._id }}"
 
       - name: find_analyst_agent
-        type: elasticsearch.search
+        type: http
         with:
-          index: "{{ consts.registry_index }}"
-          size: 1
-          query:
-            bool:
-              must:
-                - term:
-                    status: "active"
-                - term:
-                    domain: "triage"
+          method: POST
+          url: "{{ consts.es_url }}/{{ consts.registry_index }}/_search"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
+          body:
+            size: 1
+            query:
+              bool:
+                must:
+                  - term:
+                      status: "active"
+                  - term:
+                      domain: "triage"
 
       - name: check_analyst_found
         type: if
-        condition: steps.find_analyst_agent.output.hits.total.value > 0
+        condition: steps.find_analyst_agent.output.data.hits.total.value > 0
         steps:
 
           - name: update_assignment
@@ -110,7 +120,7 @@ steps:
                 Authorization: "ApiKey {{ consts.es_api_key }}"
               body:
                 doc:
-                  assigned_agent: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
+                  assigned_agent: "{{ steps.find_analyst_agent.output.data.hits.hits[0]._source.agent_id }}"
                   status: "investigating"
                   updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
 
@@ -124,7 +134,7 @@ steps:
                 Authorization: "ApiKey __KIBANA_API_KEY__"
                 kbn-xsrf: "true"
               body:
-                agent_id: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
+                agent_id: "{{ steps.find_analyst_agent.output.data.hits.hits[0]._source.agent_id }}"
                 connector_id: "__LLM_CONNECTOR_ID__"
                 input: |
                   Triage this security alert. Investigation document ID: {{ steps.create_investigation.output.data._id }}
@@ -166,7 +176,7 @@ steps:
                     ctx._source.updated_at = params.now;
                   params:
                     entry:
-                      agent_id: "{{ steps.find_analyst_agent.output.hits.hits[0]._source.agent_id }}"
+                      agent_id: "{{ steps.find_analyst_agent.output.data.hits.hits[0]._source.agent_id }}"
                       timestamp: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
                       evidence_type: "finding"
                       content: "{{ steps.invoke_analyst.output.data.response.message }}"

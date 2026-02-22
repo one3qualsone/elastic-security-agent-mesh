@@ -33,48 +33,60 @@ inputs:
     default: 50
 
 consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
   alerts_index: ".alerts-security.alerts-default"
   kb_index: "kb-detection-rules"
 
 steps:
 
   - name: find_high_volume_rules
-    type: elasticsearch.search
+    type: http
     with:
-      index: "{{ consts.alerts_index }}"
-      size: 0
-      query:
-        range:
-          "@timestamp":
-            gte: "now-{{ inputs.lookback_days }}d"
-      aggregations:
-        by_rule:
-          terms:
-            field: "kibana.alert.rule.name"
-            size: 100
-            order:
-              _count: desc
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.alerts_index }}/_search"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
+        size: 0
+        query:
+          range:
+            "@timestamp":
+              gte: "now-{{ inputs.lookback_days }}d"
+        aggregations:
+          by_rule:
+            terms:
+              field: "kibana.alert.rule.name"
+              size: 100
+              order:
+                _count: desc
 
   - name: find_fp_heavy_rules
-    type: elasticsearch.search
+    type: http
     with:
-      index: "{{ consts.alerts_index }}"
-      size: 0
-      query:
-        bool:
-          must:
-            - range:
-                "@timestamp":
-                  gte: "now-{{ inputs.lookback_days }}d"
-            - term:
-                kibana.alert.workflow_tags: "false-positive"
-      aggregations:
-        by_rule:
-          terms:
-            field: "kibana.alert.rule.name"
-            size: 100
-            order:
-              _count: desc
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.alerts_index }}/_search"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
+        size: 0
+        query:
+          bool:
+            must:
+              - range:
+                  "@timestamp":
+                    gte: "now-{{ inputs.lookback_days }}d"
+              - term:
+                  kibana.alert.workflow_tags: "false-positive"
+        aggregations:
+          by_rule:
+            terms:
+              field: "kibana.alert.rule.name"
+              size: 100
+              order:
+                _count: desc
     on-failure:
       continue: true
 
@@ -82,10 +94,10 @@ steps:
     type: http
     with:
       method: POST
-      url: "__ES_URL__/{{ consts.kb_index }}/_doc"
+      url: "{{ consts.es_url }}/{{ consts.kb_index }}/_doc"
       headers:
         Content-Type: application/json
-        Authorization: "ApiKey __ES_API_KEY__"
+        Authorization: "ApiKey {{ consts.es_api_key }}"
       body:
         title: "Noisy Rules Report — {{ 'now' | date: '%Y-%m-%d' }}"
         content: |
@@ -106,8 +118,8 @@ steps:
         metadata:
           lookback_days: "{{ inputs.lookback_days }}"
           alert_threshold: "{{ inputs.alert_threshold }}"
-          high_volume_rules: "{{ steps.find_high_volume_rules.output.aggregations.by_rule.buckets }}"
-          fp_heavy_rules: "{{ steps.find_fp_heavy_rules.output.aggregations.by_rule.buckets }}"
+          high_volume_rules: "{{ steps.find_high_volume_rules.output.data.aggregations.by_rule.buckets }}"
+          fp_heavy_rules: "{{ steps.find_fp_heavy_rules.output.data.aggregations.by_rule.buckets }}"
 
   - name: confirm
     type: console

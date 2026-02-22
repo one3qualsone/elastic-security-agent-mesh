@@ -69,13 +69,18 @@ steps:
         Techniques: {{ covered_techniques | join: ", " }}
 
   - name: search_kb_techniques
-    type: elasticsearch.search
+    type: http
     with:
-      index: kb-mitre-attack
-      size: 0
-      track_total_hits: true
-      query:
-        match_all: {}
+      method: POST
+      url: "__ES_URL__/kb-mitre-attack/_search"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __ES_API_KEY__"
+      body:
+        size: 0
+        track_total_hits: true
+        query:
+          match_all: {}
     on-failure:
       continue: true
 
@@ -87,4 +92,4 @@ steps:
         Total detection rules evaluated: {{ steps.fetch_all_rules.output.data.total }}
         Enabled only: {{ inputs.enabled_only }}
         {% if inputs.tactic_filter %}Tactic filter: {{ inputs.tactic_filter }}{% endif %}
-        Total techniques in KB: {{ steps.search_kb_techniques.output.hits.total.value }}
+        Total techniques in KB: {{ steps.search_kb_techniques.output.data.hits.total.value }}

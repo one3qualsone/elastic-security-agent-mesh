@@ -34,6 +34,8 @@ inputs:
     default: 5
 
 consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
   index_name: "investigation-contexts"
 
 steps:
@@ -49,42 +51,52 @@ steps:
     steps:
 
       - name: filtered_search
-        type: elasticsearch.search
+        type: http
         with:
-          index: "{{ consts.index_name }}"
-          size: "{{ inputs.max_results }}"
-          query:
-            bool:
-              must:
-                - term:
-                    status: "{{ inputs.status_filter }}"
-              should:
-                - semantic:
-                    field: semantic_summary
-                    query: "{{ inputs.query_text }}"
-              minimum_should_match: 1
+          method: POST
+          url: "{{ consts.es_url }}/{{ consts.index_name }}/_search"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
+          body:
+            size: "{{ inputs.max_results }}"
+            query:
+              bool:
+                must:
+                  - term:
+                      status: "{{ inputs.status_filter }}"
+                should:
+                  - semantic:
+                      field: semantic_summary
+                      query: "{{ inputs.query_text }}"
+                minimum_should_match: 1
 
     else:
 
       - name: unfiltered_search
-        type: elasticsearch.search
+        type: http
         with:
-          index: "{{ consts.index_name }}"
-          size: "{{ inputs.max_results }}"
-          query:
-            bool:
-              should:
-                - semantic:
-                    field: semantic_summary
-                    query: "{{ inputs.query_text }}"
-              minimum_should_match: 1
+          method: POST
+          url: "{{ consts.es_url }}/{{ consts.index_name }}/_search"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
+          body:
+            size: "{{ inputs.max_results }}"
+            query:
+              bool:
+                should:
+                  - semantic:
+                      field: semantic_summary
+                      query: "{{ inputs.query_text }}"
+                minimum_should_match: 1
 
   - name: output_results
     type: console
     with:
       message: |
         {% if inputs.status_filter %}
-        Found {{ steps.filtered_search.output.hits.total.value }} similar investigations (filtered by {{ inputs.status_filter }})
+        Found {{ steps.filtered_search.output.data.hits.total.value }} similar investigations (filtered by {{ inputs.status_filter }})
         {% else %}
-        Found {{ steps.unfiltered_search.output.hits.total.value }} similar investigations
+        Found {{ steps.unfiltered_search.output.data.hits.total.value }} similar investigations
         {% endif %}

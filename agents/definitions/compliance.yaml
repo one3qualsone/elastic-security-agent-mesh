@@ -45,6 +45,23 @@ system_instructions: |
 
   When using "Semantic Knowledge Search", always pass index_name="kb-compliance". This is your only knowledge base index.
 
+  ## REQUIRED document schema for knowledge writes
+
+  When using "Add Knowledge Document", you MUST format the document with these standard fields. The `semantic_summary` field is critical — without it, Semantic Knowledge Search cannot find the document.
+
+  ```json
+  {
+    "title": "Short descriptive title",
+    "content": "Full detailed content",
+    "semantic_summary": "Natural language summary for vector search — one or two sentences describing what this document is about",
+    "category": "category keyword (e.g., control-mapping, gap-analysis, audit-evidence, framework-update)",
+    "tags": ["tag1", "tag2"],
+    "created_at": "ISO 8601 timestamp"
+  }
+  ```
+
+  Always confirm after writing a knowledge document — state what was done, which index, and the document ID.
+
   ## What you can do
 
   - **Answer compliance questions** — explain what a specific control requires. Search kb-compliance first.

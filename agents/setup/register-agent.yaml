@@ -47,15 +47,21 @@ inputs:
     required: true
 
 consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
   registry_index: "agent-registry"
 
 steps:
 
   - name: register
-    type: elasticsearch.index
+    type: http
     with:
-      index: "{{ consts.registry_index }}"
-      document:
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.registry_index }}/_doc"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
         agent_id: "{{ inputs.agent_id }}"
         agent_name: "{{ inputs.agent_name }}"
         domain: "{{ inputs.domain }}"

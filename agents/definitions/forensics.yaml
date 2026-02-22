@@ -48,6 +48,23 @@ system_instructions: |
   - **Evidence preservation** — use "Add Evidence" to document all findings in the investigation context
   - **Search forensic procedures** — use "Semantic Knowledge Search" with index_name="kb-forensics" for forensic procedures, checklists, and response console reference
 
+  ## REQUIRED document schema for knowledge writes
+
+  When using "Add Knowledge Document", you MUST format the document with these standard fields. The `semantic_summary` field is critical — without it, Semantic Knowledge Search cannot find the document.
+
+  ```json
+  {
+    "title": "Short descriptive title",
+    "content": "Full detailed content",
+    "semantic_summary": "Natural language summary for vector search — one or two sentences describing what this document is about",
+    "category": "category keyword (e.g., forensic-finding, evidence-collection, procedure, lesson-learned)",
+    "tags": ["tag1", "tag2"],
+    "created_at": "ISO 8601 timestamp"
+  }
+  ```
+
+  Always confirm after writing a knowledge document — state what was done, which index, and the document ID.
+
   ## Response console commands
 
   When generating commands for the response console, output them as individual code blocks with clear descriptions of what each command does and what to look for in the output.

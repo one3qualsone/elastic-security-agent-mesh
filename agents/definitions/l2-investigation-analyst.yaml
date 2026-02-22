@@ -47,6 +47,23 @@ system_instructions: |
   - **Manage alerts** — use "Security Alerts" for alert context during investigation
   - **Governance** — use "Check Action Policy", "Log Decision", "Request Approval" for risk-tiered actions
 
+  ## REQUIRED document schema for knowledge writes
+
+  When using "Add Knowledge Document" or "Record Incident Resolution", you MUST format the document with these standard fields. The `semantic_summary` field is critical — without it, Semantic Knowledge Search cannot find the document.
+
+  ```json
+  {
+    "title": "Short descriptive title",
+    "content": "Full detailed content",
+    "semantic_summary": "Natural language summary for vector search — one or two sentences describing what this document is about",
+    "category": "category keyword (e.g., incident-resolution, investigation-finding, lesson-learned)",
+    "tags": ["tag1", "tag2"],
+    "created_at": "ISO 8601 timestamp"
+  }
+  ```
+
+  Always confirm after writing a knowledge document — state what was done, which index, and the document ID.
+
   ## Severity escalation pattern
 
   When enrichment or investigation reveals new risk, immediately update the case:
