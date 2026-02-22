@@ -5,10 +5,8 @@
 # Updates an existing detection rule via the Kibana Detection Engine PATCH API.
 # Can modify query, severity, description, and other rule properties.
 #
-# NOTE: Due to Liquid type coercion (all values rendered as strings), fields
-# that require non-string types (risk_score, tags, threat) are handled with
-# static YAML values. The agent should use separate severity-specific calls
-# or accept that risk_score updates require manual adjustment.
+# Accepts either rule_id (slug) or saved object id (UUID) — tries rule_id
+# first, falls back to id lookup, same pattern as get-rule-details.
 #
 # Author: Security Agent Mesh
 # =============================================================================
@@ -40,10 +38,6 @@ inputs:
     type: string
     description: "Updated severity: low, medium, high, critical"
     required: false
-  - name: enabled
-    type: string
-    description: "Set to 'true' to enable or 'false' to disable"
-    required: false
   - name: interval
     type: string
     description: "Updated run interval (e.g., 5m, 15m, 1h)"
@@ -59,7 +53,8 @@ inputs:
 
 steps:
 
-  - name: get_current_rule
+  # Try lookup by rule_id (slug) first
+  - name: try_by_rule_id
     type: http
     with:
       method: GET
@@ -67,6 +62,21 @@ steps:
       headers:
         Authorization: "ApiKey __KIBANA_API_KEY__"
         kbn-xsrf: "true"
+    on-failure:
+      continue: true
+
+  # Fall back to saved object id (UUID) if rule_id lookup failed
+  - name: try_by_uuid
+    type: http
+    condition: "{{ steps.try_by_rule_id.error != null }}"
+    with:
+      method: GET
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules?id={{ inputs.rule_id }}"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+    on-failure:
+      continue: true
 
   - name: update_rule
     type: http
@@ -78,12 +88,14 @@ steps:
         Authorization: "ApiKey __KIBANA_API_KEY__"
         kbn-xsrf: "true"
       body:
-        id: "{{ steps.get_current_rule.output.data.id }}"
-        query: "{{ inputs.query | default: steps.get_current_rule.output.data.query }}"
-        description: "{{ inputs.description | default: steps.get_current_rule.output.data.description }}"
-        severity: "{{ inputs.severity | default: steps.get_current_rule.output.data.severity }}"
-        interval: "{{ inputs.interval | default: steps.get_current_rule.output.data.interval }}"
-        from: "{{ inputs.from | default: steps.get_current_rule.output.data.from }}"
+        id: "{{ steps.try_by_uuid.output.data.id | default: steps.try_by_rule_id.output.data.id }}"
+        query: "{{ inputs.query | default: steps.try_by_rule_id.output.data.query | default: steps.try_by_uuid.output.data.query }}"
+        description: "{{ inputs.description | default: steps.try_by_rule_id.output.data.description | default: steps.try_by_uuid.output.data.description }}"
+        severity: "{{ inputs.severity | default: steps.try_by_rule_id.output.data.severity | default: steps.try_by_uuid.output.data.severity }}"
+        interval: "{{ inputs.interval | default: steps.try_by_rule_id.output.data.interval | default: steps.try_by_uuid.output.data.interval }}"
+        from: "{{ inputs.from | default: steps.try_by_rule_id.output.data.from | default: steps.try_by_uuid.output.data.from }}"
+    on-failure:
+      continue: true
 
   - name: confirm
     type: console

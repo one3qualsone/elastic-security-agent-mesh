@@ -3,7 +3,13 @@
 # Category: security/detection
 #
 # Toggles a detection rule's enabled status. Enabling is a Tier 2
-# governance action. Uses explicit HTTP auth for subagent chain reliability.
+# governance action — the agent should check governance policy first.
+#
+# Uses if-branches to set the enabled field as a native YAML boolean
+# (Liquid renders everything as strings, and the API rejects string
+# values for the enabled field).
+#
+# Accepts either rule_id (slug) or saved object id (UUID).
 #
 # Author: Security Agent Mesh
 # =============================================================================
@@ -21,31 +27,84 @@ triggers:
 inputs:
   - name: rule_id
     type: string
-    description: "The rule_id of the detection rule to toggle"
+    description: "The rule_id (slug) or saved object id (UUID) of the detection rule"
     required: true
   - name: enabled
-    type: boolean
-    description: "Set to true to enable, false to disable"
+    type: string
+    description: "Set to 'true' to enable, 'false' to disable"
     required: true
 
 steps:
 
-  - name: toggle_rule
+  # Look up the rule to get its saved object ID (needed for PATCH)
+  - name: try_by_rule_id
     type: http
     with:
-      method: PATCH
-      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+      method: GET
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules?rule_id={{ inputs.rule_id }}"
       headers:
-        Content-Type: application/json
         Authorization: "ApiKey __KIBANA_API_KEY__"
         kbn-xsrf: "true"
-      body:
-        rule_id: "{{ inputs.rule_id }}"
-        enabled: "{{ inputs.enabled }}"
+    on-failure:
+      continue: true
+
+  - name: try_by_uuid
+    type: http
+    condition: "{{ steps.try_by_rule_id.error != null }}"
+    with:
+      method: GET
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules?id={{ inputs.rule_id }}"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+    on-failure:
+      continue: true
+
+  # Branch: enable
+  - name: branch_enable
+    type: if
+    condition: 'inputs.enabled: "true"'
+    steps:
+      - name: enable_rule
+        type: http
+        with:
+          method: PATCH
+          url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey __KIBANA_API_KEY__"
+            kbn-xsrf: "true"
+          body:
+            id: "{{ steps.try_by_uuid.output.data.id | default: steps.try_by_rule_id.output.data.id }}"
+            enabled: true
+        on-failure:
+          continue: true
+
+  # Branch: disable
+  - name: branch_disable
+    type: if
+    condition: 'inputs.enabled: "false"'
+    steps:
+      - name: disable_rule
+        type: http
+        with:
+          method: PATCH
+          url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey __KIBANA_API_KEY__"
+            kbn-xsrf: "true"
+          body:
+            id: "{{ steps.try_by_uuid.output.data.id | default: steps.try_by_rule_id.output.data.id }}"
+            enabled: false
+        on-failure:
+          continue: true
 
   - name: confirm
     type: console
     with:
       message: |
-        Rule {{ inputs.rule_id }}: {% if inputs.enabled %}ENABLED{% else %}DISABLED{% endif %}
-        Name: {{ steps.toggle_rule.output.data.name }}
+        {% assign result = steps.branch_enable.steps.enable_rule.output.data | default: steps.branch_disable.steps.disable_rule.output.data %}
+        Rule {{ inputs.rule_id }}: {% if inputs.enabled == "true" %}ENABLED{% else %}DISABLED{% endif %}
+        Name: {{ result.name }}
+        ID: {{ result.id }}
