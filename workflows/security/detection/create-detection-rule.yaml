@@ -93,6 +93,8 @@ steps:
             interval: "{{ inputs.interval }}"
             from: "{{ inputs.from }}"
             enabled: false
+        on-failure:
+          continue: true
 
   # --- Branch: Standard rules (KQL/EQL/threshold — require index) ---
   - name: branch_standard
@@ -124,10 +126,14 @@ steps:
             interval: "{{ inputs.interval }}"
             from: "{{ inputs.from }}"
             enabled: false
+        on-failure:
+          continue: true
 
   # --- Patch risk_score to match severity ---
   # Liquid renders numbers as strings, so we create with 47 (medium)
   # then patch to the correct value for other severities.
+  # Each PATCH has on-failure:continue so the workflow doesn't hard-fail
+  # if the POST step above failed (which leaves the ID empty).
 
   - name: patch_risk_low
     type: if
@@ -145,6 +151,8 @@ steps:
           body:
             id: "{{ steps.branch_esql.steps.post_esql_rule.output.data.id | default: steps.branch_standard.steps.post_standard_rule.output.data.id }}"
             risk_score: 21
+        on-failure:
+          continue: true
 
   - name: patch_risk_high
     type: if
@@ -162,6 +170,8 @@ steps:
           body:
             id: "{{ steps.branch_esql.steps.post_esql_rule.output.data.id | default: steps.branch_standard.steps.post_standard_rule.output.data.id }}"
             risk_score: 73
+        on-failure:
+          continue: true
 
   - name: patch_risk_critical
     type: if
@@ -179,6 +189,8 @@ steps:
           body:
             id: "{{ steps.branch_esql.steps.post_esql_rule.output.data.id | default: steps.branch_standard.steps.post_standard_rule.output.data.id }}"
             risk_score: 99
+        on-failure:
+          continue: true
 
   - name: confirm
     type: console

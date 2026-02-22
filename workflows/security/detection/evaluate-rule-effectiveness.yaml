@@ -93,11 +93,11 @@ steps:
         Interval: {{ steps.get_rule.output.data.interval }}
 
         === Alert Summary ===
-        Total alerts: {{ steps.get_alerts_for_rule.output.hits.total.value }}
-        By status: {{ steps.get_alerts_for_rule.output.aggregations.by_status.buckets }}
-        By severity: {{ steps.get_alerts_for_rule.output.aggregations.by_severity.buckets }}
-        Top hosts: {{ steps.get_alerts_for_rule.output.aggregations.by_host.buckets }}
-        Top source IPs: {{ steps.get_alerts_for_rule.output.aggregations.by_source_ip.buckets }}
+        Total alerts: {{ steps.get_alerts_for_rule.output.data.hits.total.value }}
+        By status: {{ steps.get_alerts_for_rule.output.data.aggregations.by_status.buckets }}
+        By severity: {{ steps.get_alerts_for_rule.output.data.aggregations.by_severity.buckets }}
+        Top hosts: {{ steps.get_alerts_for_rule.output.data.aggregations.by_host.buckets }}
+        Top source IPs: {{ steps.get_alerts_for_rule.output.data.aggregations.by_source_ip.buckets }}
 
         === Execution Log (last 7 days) ===
         {{ steps.get_execution_log.output.data }}
