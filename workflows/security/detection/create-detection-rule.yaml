@@ -68,7 +68,7 @@ steps:
   # --- Branch: ES|QL rules (no index field) ---
   - name: branch_esql
     type: if
-    condition: inputs.rule_type: esql
+    condition: 'inputs.rule_type: "esql"'
     steps:
       - name: post_esql_rule
         type: http
@@ -97,7 +97,7 @@ steps:
   # --- Branch: Standard rules (KQL/EQL/threshold — require index) ---
   - name: branch_standard
     type: if
-    condition: NOT inputs.rule_type: esql
+    condition: 'NOT inputs.rule_type: "esql"'
     steps:
       - name: post_standard_rule
         type: http
@@ -131,7 +131,7 @@ steps:
 
   - name: patch_risk_low
     type: if
-    condition: inputs.severity: low
+    condition: 'inputs.severity: "low"'
     steps:
       - name: patch_to_21
         type: http
@@ -148,7 +148,7 @@ steps:
 
   - name: patch_risk_high
     type: if
-    condition: inputs.severity: high
+    condition: 'inputs.severity: "high"'
     steps:
       - name: patch_to_73
         type: http
@@ -165,7 +165,7 @@ steps:
 
   - name: patch_risk_critical
     type: if
-    condition: inputs.severity: critical
+    condition: 'inputs.severity: "critical"'
     steps:
       - name: patch_to_99
         type: http
