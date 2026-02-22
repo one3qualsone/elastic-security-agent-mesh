@@ -4,7 +4,14 @@
 #
 # Creates a new detection rule via the Kibana Detection Engine API.
 # Rules are created DISABLED by default (Tier 1 governance).
-# Uses explicit HTTP auth for subagent chain reliability.
+#
+# IMPORTANT: Liquid templates render everything as strings. Fields that
+# require non-string types (risk_score: number, tags: array) use static
+# YAML values. risk_score is set via a create-then-patch pattern to match
+# the severity input.
+#
+# Handles both ES|QL rules (no index field) and standard rules (KQL/EQL
+# with index patterns).
 #
 # Author: Security Agent Mesh
 # =============================================================================
@@ -40,26 +47,10 @@ inputs:
     type: string
     description: "Query language: esql, kuery, or eql"
     default: "esql"
-  - name: index_patterns
-    type: array
-    description: "Index patterns to query (e.g., ['logs-*'])"
-    default: ["logs-*"]
   - name: severity
     type: string
     description: "Rule severity: low, medium, high, critical"
     default: "medium"
-  - name: risk_score
-    type: number
-    description: "Risk score (0-100)"
-    default: 50
-  - name: tags
-    type: array
-    description: "Rule tags for categorisation"
-    required: false
-  - name: threat
-    type: array
-    description: "MITRE ATT&CK threat mapping array"
-    required: false
   - name: interval
     type: string
     description: "Rule run interval"
@@ -71,37 +62,129 @@ inputs:
 
 steps:
 
-  - name: create_rule
-    type: http
-    with:
-      method: POST
-      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
-      headers:
-        Content-Type: application/json
-        Authorization: "ApiKey __KIBANA_API_KEY__"
-        kbn-xsrf: "true"
-      body:
-        name: "{{ inputs.name }}"
-        description: "{{ inputs.description }}"
-        type: "{{ inputs.rule_type }}"
-        query: "{{ inputs.query }}"
-        language: "{{ inputs.language }}"
-        index: "{{ inputs.index_patterns }}"
-        severity: "{{ inputs.severity }}"
-        risk_score: "{{ inputs.risk_score }}"
-        tags: "{{ inputs.tags | default: '[\"auto-generated\"]' }}"
-        threat: "{{ inputs.threat | default: '[]' }}"
-        interval: "{{ inputs.interval }}"
-        from: "{{ inputs.from }}"
-        enabled: false
+  # --- Branch: ES|QL rules (no index field) ---
+  - name: create_esql_rule
+    type: if
+    condition: inputs.rule_type == "esql"
+    steps:
+      - name: create
+        type: http
+        with:
+          method: POST
+          url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey __KIBANA_API_KEY__"
+            kbn-xsrf: "true"
+          body:
+            name: "{{ inputs.name }}"
+            description: "{{ inputs.description }}"
+            type: "esql"
+            query: "{{ inputs.query }}"
+            language: "esql"
+            severity: "{{ inputs.severity }}"
+            risk_score: 47
+            tags:
+              - agent-mesh
+              - auto-generated
+            interval: "{{ inputs.interval }}"
+            from: "{{ inputs.from }}"
+            enabled: false
+
+  # --- Branch: Standard rules (KQL/EQL/threshold — require index) ---
+  - name: create_standard_rule
+    type: if
+    condition: inputs.rule_type != "esql"
+    steps:
+      - name: create
+        type: http
+        with:
+          method: POST
+          url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey __KIBANA_API_KEY__"
+            kbn-xsrf: "true"
+          body:
+            name: "{{ inputs.name }}"
+            description: "{{ inputs.description }}"
+            type: "{{ inputs.rule_type }}"
+            query: "{{ inputs.query }}"
+            language: "{{ inputs.language }}"
+            index:
+              - "logs-*"
+            severity: "{{ inputs.severity }}"
+            risk_score: 47
+            tags:
+              - agent-mesh
+              - auto-generated
+            interval: "{{ inputs.interval }}"
+            from: "{{ inputs.from }}"
+            enabled: false
+
+  # --- Patch risk_score to match severity ---
+  # Liquid renders numbers as strings, so we create with 47 (medium)
+  # then patch to the correct value for other severities.
+
+  - name: patch_risk_low
+    type: if
+    condition: inputs.severity == "low"
+    steps:
+      - name: patch
+        type: http
+        with:
+          method: PATCH
+          url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey __KIBANA_API_KEY__"
+            kbn-xsrf: "true"
+          body:
+            id: "{{ steps.create_esql_rule.steps.create.output.data.id | default: steps.create_standard_rule.steps.create.output.data.id }}"
+            risk_score: 21
+
+  - name: patch_risk_high
+    type: if
+    condition: inputs.severity == "high"
+    steps:
+      - name: patch
+        type: http
+        with:
+          method: PATCH
+          url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey __KIBANA_API_KEY__"
+            kbn-xsrf: "true"
+          body:
+            id: "{{ steps.create_esql_rule.steps.create.output.data.id | default: steps.create_standard_rule.steps.create.output.data.id }}"
+            risk_score: 73
+
+  - name: patch_risk_critical
+    type: if
+    condition: inputs.severity == "critical"
+    steps:
+      - name: patch
+        type: http
+        with:
+          method: PATCH
+          url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey __KIBANA_API_KEY__"
+            kbn-xsrf: "true"
+          body:
+            id: "{{ steps.create_esql_rule.steps.create.output.data.id | default: steps.create_standard_rule.steps.create.output.data.id }}"
+            risk_score: 99
 
   - name: confirm
     type: console
     with:
       message: |
         Rule created (DISABLED):
-        Name: {{ steps.create_rule.output.data.name }}
-        ID: {{ steps.create_rule.output.data.rule_id }}
-        Type: {{ steps.create_rule.output.data.type }}
-        Severity: {{ steps.create_rule.output.data.severity }}
-        Note: Rule is disabled by default. Use enable-disable-rule workflow to activate after review.
+        Name: {{ steps.create_esql_rule.steps.create.output.data.name | default: steps.create_standard_rule.steps.create.output.data.name }}
+        ID: {{ steps.create_esql_rule.steps.create.output.data.id | default: steps.create_standard_rule.steps.create.output.data.id }}
+        Rule ID: {{ steps.create_esql_rule.steps.create.output.data.rule_id | default: steps.create_standard_rule.steps.create.output.data.rule_id }}
+        Type: {{ steps.create_esql_rule.steps.create.output.data.type | default: steps.create_standard_rule.steps.create.output.data.type }}
+        Severity: {{ steps.create_esql_rule.steps.create.output.data.severity | default: steps.create_standard_rule.steps.create.output.data.severity }}
+        Note: Rule is disabled. Use Enable/Disable Rule to activate after governance review.

@@ -35,14 +35,17 @@ system_instructions: |
 
   4. **Least disruptive containment.** Isolate hosts only when necessary. Prefer targeted containment (killing a process, blocking a hash) over broad isolation when the risk assessment supports it.
 
-  ## What you can do
+  ## What you can do — and MUST do when asked
 
-  - **Execute commands on endpoints** — via Elastic Defend response console
-  - **Isolate hosts** — network isolation via Elastic Defend
-  - **Timeline analysis** — ES|QL queries to build event timelines
-  - **Process investigation** — trace process trees, parent-child relationships
-  - **Network forensics** — analyse connection patterns, DNS queries, lateral movement
-  - **File analysis** — hash collection, file metadata, persistence mechanisms
+  You have direct access to endpoint response actions via your tools. When asked to run a command, isolate a host, or collect evidence, USE YOUR TOOLS to do it.
+
+  - **Execute commands on endpoints** — use "Execute Command on Endpoint" for fire-and-forget, or "Execute and Retrieve" to get the output back
+  - **Isolate hosts** — use "Isolate Host" for network isolation (Tier 2: check governance first, request approval). Use "Release Host" to restore connectivity after investigation.
+  - **Timeline analysis** — use "Execute ES|QL" to query process, network, and file events for timeline reconstruction
+  - **Process investigation** — trace process trees, parent-child relationships via response console commands
+  - **Network forensics** — analyse connection patterns, DNS queries, lateral movement indicators
+  - **File analysis** — hash collection, file metadata, persistence mechanisms via response console
+  - **Evidence preservation** — use "Add Evidence" to document all findings in the investigation context
 
   ## Response console commands
 
@@ -64,6 +67,12 @@ tools:
   - name: Get Action Status
     workflow: workflows/utilities/get-action-status.yaml
     description: Check the status of a pending endpoint action
+  - name: Isolate Host
+    workflow: workflows/utilities/isolate-host.yaml
+    description: Network-isolate an endpoint via Elastic Defend (Tier 2 — requires approval)
+  - name: Release Host
+    workflow: workflows/utilities/release-host.yaml
+    description: Release a previously isolated endpoint, restoring network connectivity
   - name: Semantic Knowledge Search
     workflow: workflows/search/semantic-knowledge-search.yaml
     description: Search forensic procedures and reference material

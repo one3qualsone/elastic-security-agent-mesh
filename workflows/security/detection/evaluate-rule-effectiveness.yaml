@@ -1,0 +1,103 @@
+# =============================================================================
+# Workflow: Evaluate Rule Effectiveness
+# Category: security/detection
+#
+# Retrieves execution metrics for a detection rule — how often it runs,
+# how many alerts it generates, failure rate, and gap analysis. Helps
+# detection engineers tune rules and identify noisy or broken detections.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Evaluate Rule Effectiveness
+description: Get execution metrics and alert counts for a detection rule to assess its effectiveness.
+enabled: true
+
+tags:
+  - agent-mesh
+  - detection-engineering
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: rule_id
+    type: string
+    description: "The rule_id (slug) or saved object id (UUID) to evaluate"
+    required: true
+
+steps:
+
+  - name: get_rule
+    type: http
+    with:
+      method: GET
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules?rule_id={{ inputs.rule_id }}"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+
+  - name: get_alerts_for_rule
+    type: http
+    with:
+      method: POST
+      url: "__ES_URL__/.alerts-security.alerts-*/_search"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __ES_API_KEY__"
+      body:
+        size: 0
+        query:
+          bool:
+            must:
+              - term:
+                  kibana.alert.rule.uuid: "{{ steps.get_rule.output.data.id }}"
+        aggs:
+          by_status:
+            terms:
+              field: "kibana.alert.workflow_status"
+          by_severity:
+            terms:
+              field: "kibana.alert.severity"
+          alerts_over_time:
+            date_histogram:
+              field: "@timestamp"
+              calendar_interval: "day"
+          by_host:
+            terms:
+              field: "host.name"
+              size: 10
+          by_source_ip:
+            terms:
+              field: "source.ip"
+              size: 10
+
+  - name: get_execution_log
+    type: http
+    with:
+      method: GET
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/internal/detection_engine/rules/{{ steps.get_rule.output.data.id }}/_execution_results?start=now-7d&end=now&per_page=100&sort_field=timestamp&sort_order=desc"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+
+  - name: output_report
+    type: console
+    with:
+      message: |
+        === Rule Effectiveness Report ===
+        Rule: {{ steps.get_rule.output.data.name }}
+        Rule ID: {{ steps.get_rule.output.data.rule_id }}
+        Type: {{ steps.get_rule.output.data.type }} ({{ steps.get_rule.output.data.language }})
+        Severity: {{ steps.get_rule.output.data.severity }}
+        Enabled: {{ steps.get_rule.output.data.enabled }}
+        Interval: {{ steps.get_rule.output.data.interval }}
+
+        === Alert Summary ===
+        Total alerts: {{ steps.get_alerts_for_rule.output.hits.total.value }}
+        By status: {{ steps.get_alerts_for_rule.output.aggregations.by_status.buckets }}
+        By severity: {{ steps.get_alerts_for_rule.output.aggregations.by_severity.buckets }}
+        Top hosts: {{ steps.get_alerts_for_rule.output.aggregations.by_host.buckets }}
+        Top source IPs: {{ steps.get_alerts_for_rule.output.aggregations.by_source_ip.buckets }}
+
+        === Execution Log (last 7 days) ===
+        {{ steps.get_execution_log.output.data }}

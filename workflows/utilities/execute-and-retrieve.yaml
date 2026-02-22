@@ -6,6 +6,9 @@
 # completion, and retrieves the result. Uses explicit HTTP auth for
 # subagent chain reliability.
 #
+# NOTE: endpoint_ids must be an array. This workflow accepts a single
+# endpoint_id (string) and wraps it in a proper YAML array.
+#
 # Author: Security Agent Mesh (based on Elastic template)
 # =============================================================================
 name: Execute and Retrieve
@@ -21,10 +24,10 @@ triggers:
   - type: manual
 
 inputs:
-  - name: endpointids
-    default: []
-    type: array
-    description: "Endpoint IDs to execute the command on"
+  - name: endpoint_id
+    type: string
+    description: "The endpoint ID to execute the command on"
+    required: true
   - name: comment
     default: "Command executed via security mesh"
     type: string
@@ -46,7 +49,8 @@ steps:
         Authorization: "ApiKey __KIBANA_API_KEY__"
         kbn-xsrf: "true"
       body:
-        endpoint_ids: "{{ inputs.endpointids }}"
+        endpoint_ids:
+          - "{{ inputs.endpoint_id }}"
         comment: "{{ inputs.comment }}"
         parameters:
           command: "{{ inputs.command }}"

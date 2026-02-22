@@ -1,0 +1,97 @@
+# =============================================================================
+# Workflow: Update Detection Rule
+# Category: security/detection
+#
+# Updates an existing detection rule via the Kibana Detection Engine PATCH API.
+# Can modify query, severity, description, and other rule properties.
+#
+# NOTE: Due to Liquid type coercion (all values rendered as strings), fields
+# that require non-string types (risk_score, tags, threat) are handled with
+# static YAML values. The agent should use separate severity-specific calls
+# or accept that risk_score updates require manual adjustment.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Update Detection Rule
+description: Update an existing detection rule's query, severity, description, or other properties.
+enabled: true
+
+tags:
+  - agent-mesh
+  - detection-engineering
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: rule_id
+    type: string
+    description: "The rule_id (slug) or saved object id (UUID) of the rule to update"
+    required: true
+  - name: query
+    type: string
+    description: "Updated detection query (ES|QL, KQL, or EQL)"
+    required: false
+  - name: description
+    type: string
+    description: "Updated rule description"
+    required: false
+  - name: severity
+    type: string
+    description: "Updated severity: low, medium, high, critical"
+    required: false
+  - name: enabled
+    type: string
+    description: "Set to 'true' to enable or 'false' to disable"
+    required: false
+  - name: interval
+    type: string
+    description: "Updated run interval (e.g., 5m, 15m, 1h)"
+    required: false
+  - name: from
+    type: string
+    description: "Updated lookback period (e.g., now-6m, now-15m)"
+    required: false
+  - name: name
+    type: string
+    description: "Updated rule name"
+    required: false
+
+steps:
+
+  - name: get_current_rule
+    type: http
+    with:
+      method: GET
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules?rule_id={{ inputs.rule_id }}"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+
+  - name: update_rule
+    type: http
+    with:
+      method: PATCH
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/detection_engine/rules"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+      body:
+        id: "{{ steps.get_current_rule.output.data.id }}"
+        query: "{{ inputs.query | default: steps.get_current_rule.output.data.query }}"
+        description: "{{ inputs.description | default: steps.get_current_rule.output.data.description }}"
+        severity: "{{ inputs.severity | default: steps.get_current_rule.output.data.severity }}"
+        interval: "{{ inputs.interval | default: steps.get_current_rule.output.data.interval }}"
+        from: "{{ inputs.from | default: steps.get_current_rule.output.data.from }}"
+
+  - name: confirm
+    type: console
+    with:
+      message: |
+        Rule updated:
+        Name: {{ steps.update_rule.output.data.name }}
+        ID: {{ steps.update_rule.output.data.id }}
+        Rule ID: {{ steps.update_rule.output.data.rule_id }}
+        Severity: {{ steps.update_rule.output.data.severity }}
+        Enabled: {{ steps.update_rule.output.data.enabled }}

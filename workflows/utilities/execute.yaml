@@ -5,6 +5,10 @@
 # Executes a shell command on an endpoint via Elastic Defend response
 # actions. Uses explicit HTTP auth for subagent chain reliability.
 #
+# NOTE: endpoint_ids must be an array. Since Liquid renders arrays as
+# strings, this workflow accepts a single endpoint_id (string) and wraps
+# it in a proper YAML array in the body.
+#
 # Author: Security Agent Mesh (based on Elastic template)
 # =============================================================================
 name: Execute
@@ -20,10 +24,10 @@ triggers:
   - type: manual
 
 inputs:
-  - name: endpointids
-    default: []
-    type: array
-    description: "Endpoint IDs to execute the command on"
+  - name: endpoint_id
+    type: string
+    description: "The endpoint ID to execute the command on"
+    required: true
   - name: comment
     default: "Command executed via security mesh"
     type: string
@@ -45,7 +49,8 @@ steps:
         Authorization: "ApiKey __KIBANA_API_KEY__"
         kbn-xsrf: "true"
       body:
-        endpoint_ids: "{{ inputs.endpointids }}"
+        endpoint_ids:
+          - "{{ inputs.endpoint_id }}"
         comment: "{{ inputs.comment }}"
         parameters:
           command: "{{ inputs.command }}"

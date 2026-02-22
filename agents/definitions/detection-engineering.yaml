@@ -35,8 +35,10 @@ system_instructions: |
 
   - **List and search detection rules** — use "List Detection Rules" or "Search Rules by MITRE Technique"
   - **Get rule details** — use "Get Rule Details" with the detection engine rule_id (not the Kibana saved object UUID)
-  - **Create new rules** — use "Create Detection Rule" to create rules via the API (created DISABLED by default for governance)
+  - **Create new rules** — use "Create Detection Rule" to create rules via the API (created DISABLED by default for governance). PREFER ES|QL for new rules — it's the most powerful query language for detection engineering.
+  - **Update existing rules** — use "Update Detection Rule" to modify queries, severity, descriptions, or other properties of existing rules (any type: KQL, EQL, ES|QL, threshold)
   - **Enable or disable rules** — use "Enable/Disable Rule" to toggle rules (enabling is Tier 2; check governance first)
+  - **Evaluate rule effectiveness** — use "Evaluate Rule Effectiveness" to check a rule's alert output, execution history, and hit rate over time
   - **Evaluate MITRE coverage** — use "Evaluate MITRE Coverage" to identify gaps
   - **Migrate rules from other SIEMs** — translate KQL (Sentinel), SPL (Splunk), or Sigma rules to Elastic
   - **Recommend which rules to enable** — based on available data sources and threat landscape
@@ -90,9 +92,15 @@ tools:
   - name: Create Detection Rule
     workflow: workflows/security/detection/create-detection-rule.yaml
     description: Create a new detection rule (disabled by default for governance review)
+  - name: Update Detection Rule
+    workflow: workflows/security/detection/update-detection-rule.yaml
+    description: Update an existing detection rule's query, severity, description, or other properties
   - name: Enable/Disable Rule
     workflow: workflows/security/detection/enable-disable-rule.yaml
     description: Toggle a detection rule on or off (enabling is Tier 2 governance)
+  - name: Evaluate Rule Effectiveness
+    workflow: workflows/security/detection/evaluate-rule-effectiveness.yaml
+    description: Get execution metrics and alert counts for a rule to assess effectiveness
   - name: Search Rules by MITRE Technique
     workflow: workflows/security/detection/search-rules-by-technique.yaml
     description: Find rules mapped to a specific MITRE ATT&CK technique
@@ -159,6 +167,8 @@ registry_entry:
   domain: "detection_engineering"
   capabilities:
     - "rule_creation"
+    - "rule_update"
+    - "rule_effectiveness_evaluation"
     - "rule_migration"
     - "coverage_analysis"
     - "schema_normalisation"

@@ -1,0 +1,58 @@
+# =============================================================================
+# Workflow: Isolate Host
+# Category: utilities
+#
+# Network-isolates an endpoint via Elastic Defend. This is a Tier 2
+# governance action — the agent should check action policy and request
+# approval before executing.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Isolate Host
+description: Network-isolate an endpoint via Elastic Defend (Tier 2 — requires approval).
+enabled: true
+
+tags:
+  - agent-mesh
+  - utilities
+  - response-actions
+  - containment
+
+triggers:
+  - type: manual
+
+inputs:
+  - name: endpoint_id
+    type: string
+    description: "The endpoint ID to isolate"
+    required: true
+  - name: comment
+    type: string
+    description: "Justification for isolating this host"
+    required: true
+
+steps:
+
+  - name: isolate
+    type: http
+    with:
+      method: POST
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/endpoint/action/isolate"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+      body:
+        endpoint_ids:
+          - "{{ inputs.endpoint_id }}"
+        comment: "{{ inputs.comment }}"
+
+  - name: confirm
+    type: console
+    with:
+      message: |
+        Host isolation initiated.
+        Endpoint: {{ inputs.endpoint_id }}
+        Action ID: {{ steps.isolate.output.data.data.id }}
+        Reason: {{ inputs.comment }}
+        NOTE: This is a Tier 2 action. Ensure governance approval was obtained.
