@@ -8,6 +8,10 @@
 # Uses explicit HTTP auth for reliability when called through the
 # subagent chain (Agent Builder converse API loses ES session context).
 #
+# Two branches: simple (no filters — the common case) and filtered.
+# This avoids the Liquid string-coercion problem where an empty filter
+# array renders as the string "[]" and breaks the ES bool query.
+#
 # Author: Elastic (modified by Security Agent Mesh)
 # Created: 2025-11-13
 # =============================================================================
@@ -53,50 +57,79 @@ triggers:
 
 steps:
 
-  - name: prepare_filters
-    type: console
-    with:
-      message: |
-        {% assign filters = "" | split: "" %}
-        {% if inputs.knowledge_type %}
-          {% assign filter_obj = '{"term": {"knowledge_type": "' | append: inputs.knowledge_type | append: '"}}' %}
-          {% assign filters = filters | push: filter_obj %}
-        {% endif %}
-        {% if inputs.namespace_root %}
-          {% assign filter_obj = '{"term": {"namespace.root": "' | append: inputs.namespace_root | append: '"}}' %}
-          {% assign filters = filters | push: filter_obj %}
-        {% endif %}
-        {% if inputs.namespace_scope %}
-          {% assign filter_obj = '{"term": {"namespace.scope": "' | append: inputs.namespace_scope | append: '"}}' %}
-          {% assign filters = filters | push: filter_obj %}
-        {% endif %}
-        [{{ filters | join: "," }}]
+  # --- Branch: filters provided ---
+  - name: branch_filtered
+    type: if
+    condition: inputs.knowledge_type OR inputs.namespace_root OR inputs.namespace_scope
+    steps:
 
-  - name: parse_filters
-    type: console
-    with:
-      message: "{{ steps.prepare_filters.output | json_parse }}"
+      - name: prepare_filters
+        type: console
+        with:
+          message: |
+            {% assign filters = "" | split: "" %}
+            {% if inputs.knowledge_type %}
+              {% assign filter_obj = '{"term": {"knowledge_type": "' | append: inputs.knowledge_type | append: '"}}' %}
+              {% assign filters = filters | push: filter_obj %}
+            {% endif %}
+            {% if inputs.namespace_root %}
+              {% assign filter_obj = '{"term": {"namespace.root": "' | append: inputs.namespace_root | append: '"}}' %}
+              {% assign filters = filters | push: filter_obj %}
+            {% endif %}
+            {% if inputs.namespace_scope %}
+              {% assign filter_obj = '{"term": {"namespace.scope": "' | append: inputs.namespace_scope | append: '"}}' %}
+              {% assign filters = filters | push: filter_obj %}
+            {% endif %}
+            [{{ filters | join: "," }}]
 
-  - name: search_knowledge
-    type: http
-    with:
-      method: POST
-      url: "{{ consts.es_url }}/{{ inputs.index_name }}/_search"
-      headers:
-        Content-Type: application/json
-        Authorization: "ApiKey {{ consts.es_api_key }}"
-      body:
-        size: 5
-        query:
-          bool:
-            should:
-              - semantic:
-                  field: semantic_summary
-                  query: "{{ inputs.query_text }}"
-            must: "{{ steps.parse_filters.output }}"
-            minimum_should_match: 1
+      - name: parse_filters
+        type: console
+        with:
+          message: "{{ steps.branch_filtered.steps.prepare_filters.output | json_parse }}"
 
-  - name: output_results
-    type: console
-    with:
-      message: "{{ steps.search_knowledge.output.data.hits }}"
+      - name: filtered_search
+        type: http
+        with:
+          method: POST
+          url: "{{ consts.es_url }}/{{ inputs.index_name }}/_search"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
+          body:
+            size: 5
+            query:
+              bool:
+                should:
+                  - semantic:
+                      field: semantic_summary
+                      query: "{{ inputs.query_text }}"
+                must: "{{ steps.branch_filtered.steps.parse_filters.output }}"
+                minimum_should_match: 1
+
+      - name: filtered_output
+        type: console
+        with:
+          message: "{{ steps.branch_filtered.steps.filtered_search.output.data.hits }}"
+
+    # --- Branch: no filters (common case) ---
+    else:
+
+      - name: simple_search
+        type: http
+        with:
+          method: POST
+          url: "{{ consts.es_url }}/{{ inputs.index_name }}/_search"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
+          body:
+            size: 5
+            query:
+              semantic:
+                field: semantic_summary
+                query: "{{ inputs.query_text }}"
+
+      - name: simple_output
+        type: console
+        with:
+          message: "{{ steps.branch_filtered.steps.simple_search.output.data.hits }}"
