@@ -76,7 +76,7 @@ steps:
         else:
           - name: check_approval_required
             type: if
-            condition: steps.lookup_policy.output.hits.hits[0]._source.requires_approval == true
+            condition: steps.lookup_policy.output.hits.hits[0]._source.requires_approval: true
             steps:
               - name: needs_approval
                 type: console
