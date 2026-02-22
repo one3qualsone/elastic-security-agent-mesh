@@ -13,6 +13,9 @@
 # Handles both ES|QL rules (no index field) and standard rules (KQL/EQL
 # with index patterns).
 #
+# NOTE: All step names must be globally unique across the workflow, even
+# inside if-branches.
+#
 # Author: Security Agent Mesh
 # =============================================================================
 name: Create Detection Rule
@@ -63,11 +66,11 @@ inputs:
 steps:
 
   # --- Branch: ES|QL rules (no index field) ---
-  - name: create_esql_rule
+  - name: branch_esql
     type: if
     condition: inputs.rule_type == "esql"
     steps:
-      - name: create
+      - name: post_esql_rule
         type: http
         with:
           method: POST
@@ -92,11 +95,11 @@ steps:
             enabled: false
 
   # --- Branch: Standard rules (KQL/EQL/threshold — require index) ---
-  - name: create_standard_rule
+  - name: branch_standard
     type: if
     condition: inputs.rule_type != "esql"
     steps:
-      - name: create
+      - name: post_standard_rule
         type: http
         with:
           method: POST
@@ -130,7 +133,7 @@ steps:
     type: if
     condition: inputs.severity == "low"
     steps:
-      - name: patch
+      - name: patch_to_21
         type: http
         with:
           method: PATCH
@@ -140,14 +143,14 @@ steps:
             Authorization: "ApiKey __KIBANA_API_KEY__"
             kbn-xsrf: "true"
           body:
-            id: "{{ steps.create_esql_rule.steps.create.output.data.id | default: steps.create_standard_rule.steps.create.output.data.id }}"
+            id: "{{ steps.branch_esql.steps.post_esql_rule.output.data.id | default: steps.branch_standard.steps.post_standard_rule.output.data.id }}"
             risk_score: 21
 
   - name: patch_risk_high
     type: if
     condition: inputs.severity == "high"
     steps:
-      - name: patch
+      - name: patch_to_73
         type: http
         with:
           method: PATCH
@@ -157,14 +160,14 @@ steps:
             Authorization: "ApiKey __KIBANA_API_KEY__"
             kbn-xsrf: "true"
           body:
-            id: "{{ steps.create_esql_rule.steps.create.output.data.id | default: steps.create_standard_rule.steps.create.output.data.id }}"
+            id: "{{ steps.branch_esql.steps.post_esql_rule.output.data.id | default: steps.branch_standard.steps.post_standard_rule.output.data.id }}"
             risk_score: 73
 
   - name: patch_risk_critical
     type: if
     condition: inputs.severity == "critical"
     steps:
-      - name: patch
+      - name: patch_to_99
         type: http
         with:
           method: PATCH
@@ -174,7 +177,7 @@ steps:
             Authorization: "ApiKey __KIBANA_API_KEY__"
             kbn-xsrf: "true"
           body:
-            id: "{{ steps.create_esql_rule.steps.create.output.data.id | default: steps.create_standard_rule.steps.create.output.data.id }}"
+            id: "{{ steps.branch_esql.steps.post_esql_rule.output.data.id | default: steps.branch_standard.steps.post_standard_rule.output.data.id }}"
             risk_score: 99
 
   - name: confirm
@@ -182,9 +185,9 @@ steps:
     with:
       message: |
         Rule created (DISABLED):
-        Name: {{ steps.create_esql_rule.steps.create.output.data.name | default: steps.create_standard_rule.steps.create.output.data.name }}
-        ID: {{ steps.create_esql_rule.steps.create.output.data.id | default: steps.create_standard_rule.steps.create.output.data.id }}
-        Rule ID: {{ steps.create_esql_rule.steps.create.output.data.rule_id | default: steps.create_standard_rule.steps.create.output.data.rule_id }}
-        Type: {{ steps.create_esql_rule.steps.create.output.data.type | default: steps.create_standard_rule.steps.create.output.data.type }}
-        Severity: {{ steps.create_esql_rule.steps.create.output.data.severity | default: steps.create_standard_rule.steps.create.output.data.severity }}
+        Name: {{ steps.branch_esql.steps.post_esql_rule.output.data.name | default: steps.branch_standard.steps.post_standard_rule.output.data.name }}
+        ID: {{ steps.branch_esql.steps.post_esql_rule.output.data.id | default: steps.branch_standard.steps.post_standard_rule.output.data.id }}
+        Rule ID: {{ steps.branch_esql.steps.post_esql_rule.output.data.rule_id | default: steps.branch_standard.steps.post_standard_rule.output.data.rule_id }}
+        Type: {{ steps.branch_esql.steps.post_esql_rule.output.data.type | default: steps.branch_standard.steps.post_standard_rule.output.data.type }}
+        Severity: {{ steps.branch_esql.steps.post_esql_rule.output.data.severity | default: steps.branch_standard.steps.post_standard_rule.output.data.severity }}
         Note: Rule is disabled. Use Enable/Disable Rule to activate after governance review.
