@@ -1,6 +1,6 @@
 # Security Agent Mesh
 
-> This is a personal project and is not affiliated with or endorsed by Elastic. It builds on top of Elastic's platform but is independently developed and maintained.
+> This is a personal project and is not affiliated with Elastic officially. It builds on top of Elastic's platform but is independently developed and maintained.
 
 A multi-agent SOC built on Elastic. Specialist AI agents for detection engineering, threat intelligence, triage, forensics, compliance, and SOC operations, connected through a semantic registry and governed by risk-tiered controls.
 
