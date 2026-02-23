@@ -48,10 +48,10 @@ Complete these steps in the Kibana UI before running the setup script:
    - Deploy for both Search and Ingestion (medium vCPU suggested, but dependent on size of deployment.)
    - Note the inference endpoint ID (default: `.multilingual-e5-small-elasticsearch`)
 
-3. **Create an LLM connector**
-   - Navigate to Stack Management > Connectors > Create connector
-   - Configure Claude Sonnet, GPT-4o, Gemini, or your preferred model
-   - Note the connector ID
+3. **Note your LLM connector ID**
+   - Elastic Cloud deployments come with Claude connectors out of the box — no setup needed
+   - Find your connector ID by running `GET kbn:/api/actions/connectors` in Kibana Dev Tools
+   - If you prefer a different model, create one via Stack Management > Connectors
 
 4. **Create API keys**
 
@@ -176,24 +176,11 @@ See the [Web Search Integration](#web-search-integration-mcp--optional-but-recom
 
 #### Step 3: Configure LLM Connector
 
-The LLM connector is needed in two places:
+Elastic Cloud deployments include Claude connectors out of the box. The LLM connector is used in two places:
 
-**a) Agent Builder UI** — for interactive chat with agents:
+**a) Agent Builder UI** — select your LLM connector in the chat/model dropdown when opening each agent.
 
-1. Navigate to **Agent Builder** in Kibana
-2. Open each agent and select your LLM connector in the chat/model dropdown
-
-**b) GitHub Actions secret** — for agent-to-agent calls via workflows:
-
-The Call Subagent, Orchestrator Router, and Mesh Automated Triaging workflows invoke agents programmatically via the converse API. They need a `connector_id` to specify which LLM to use.
-
-1. Find your connector ID by running this in **Kibana Dev Tools**:
-
-```
-GET kbn:/api/actions/connectors
-```
-
-2. Look for your LLM connector in the response — the `id` field is what you need. Common built-in IDs:
+**b) Workflows** — the Call Subagent, Orchestrator Router, and Mesh Automated Triaging workflows invoke agents programmatically and need a `connector_id`. Add it as `LLM_CONNECTOR_ID` in your GitHub Actions secrets (or export locally). Common built-in IDs:
 
 | Connector | ID |
 |-----------|-----|
@@ -202,9 +189,7 @@ GET kbn:/api/actions/connectors
 | Gemini 2.5 Pro | `Google-Gemini-2-5-Pro` |
 | GPT-5.2 | `OpenAI-GPT-5-2` |
 
-3. Add it as `LLM_CONNECTOR_ID` in your GitHub Actions secrets (or export locally)
-
-The setup script injects this into the workflow YAML files during deployment, just like API keys.
+Run `GET kbn:/api/actions/connectors` in Kibana Dev Tools to see all available connectors and their IDs.
 
 #### Step 4: Sync Agents
 
