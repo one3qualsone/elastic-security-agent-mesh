@@ -75,5 +75,15 @@ steps:
     with:
       message: |
         Action ID: {{ steps.execute_action.output.data.data.id }}
-        Status: {{ steps.get_action_status.output.data.data.isCompleted }}
-        Output: {{ steps.get_action_status.output.data.data.outputs }}
+        Command: {{ inputs.command }}
+        Host: {{ steps.get_action_status.output.data.data.hosts[inputs.endpoint_id].name }}
+        Completed: {{ steps.get_action_status.output.data.data.isCompleted }}
+        Successful: {{ steps.get_action_status.output.data.data.wasSuccessful }}
+        Exit Code: {{ steps.get_action_status.output.data.data.outputs[inputs.endpoint_id].content.shell_code }}
+        Shell: {{ steps.get_action_status.output.data.data.outputs[inputs.endpoint_id].content.shell }}
+
+        === STDOUT ===
+        {{ steps.get_action_status.output.data.data.outputs[inputs.endpoint_id].content.stdout }}
+
+        === STDERR ===
+        {{ steps.get_action_status.output.data.data.outputs[inputs.endpoint_id].content.stderr }}
