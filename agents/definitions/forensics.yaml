@@ -84,7 +84,7 @@ tools:
     description: Run a command and wait for the result
   - name: Get Action Status
     workflow: workflows/utilities/get-action-status.yaml
-    description: Check the status of a pending endpoint action
+    description: Check the status of a pending endpoint action and retrieve output (requires action_id and endpoint_id)
   - name: Isolate Host
     workflow: workflows/utilities/isolate-host.yaml
     description: Network-isolate an endpoint via Elastic Defend (Tier 2 — requires approval)

@@ -2,15 +2,15 @@
 # Workflow: Get Action Status
 # Category: utilities
 #
-# Retrieves the status of an endpoint response action by its action ID.
-# Used to check whether a previously initiated command (execute, isolate,
-# release) has completed.
+# Retrieves the status and output of an endpoint response action by its
+# action ID. Used to check whether a previously initiated command (execute,
+# isolate, release) has completed and to retrieve its output.
 #
 # Author: Elastic (modified by Security Agent Mesh)
 # Created: 2025-12-04
 # =============================================================================
 name: Get Action Status
-description: Check the status of a pending endpoint response action.
+description: Check the status of a pending endpoint response action and retrieve output.
 enabled: true
 
 tags:
@@ -25,6 +25,10 @@ inputs:
   - name: action_id
     type: string
     description: "The action ID returned by an endpoint response action (execute, isolate, release)"
+    required: true
+  - name: endpoint_id
+    type: string
+    description: "The endpoint ID the action was sent to (needed to extract output)"
     required: true
 
 steps:
@@ -43,4 +47,16 @@ steps:
     with:
       message: |
         Action ID: {{ inputs.action_id }}
-        Status: {{ steps.get_action_status.output.data.data }}
+        Command: {{ steps.get_action_status.output.data.data.command }}
+        Host: {{ steps.get_action_status.output.data.data.hosts[inputs.endpoint_id].name }}
+        Completed: {{ steps.get_action_status.output.data.data.isCompleted }}
+        Successful: {{ steps.get_action_status.output.data.data.wasSuccessful }}
+        Status: {{ steps.get_action_status.output.data.data.status }}
+        Exit Code: {{ steps.get_action_status.output.data.data.outputs[inputs.endpoint_id].content.shell_code }}
+        Shell: {{ steps.get_action_status.output.data.data.outputs[inputs.endpoint_id].content.shell }}
+
+        === STDOUT ===
+        {{ steps.get_action_status.output.data.data.outputs[inputs.endpoint_id].content.stdout }}
+
+        === STDERR ===
+        {{ steps.get_action_status.output.data.data.outputs[inputs.endpoint_id].content.stderr }}

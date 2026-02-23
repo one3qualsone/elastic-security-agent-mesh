@@ -59,7 +59,7 @@ steps:
   - name: wait
     type: wait
     with:
-      duration: 30s
+      duration: 60s
 
   - name: get_action_status
     type: http
