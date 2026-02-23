@@ -16,6 +16,11 @@
 name: "VirusTotal - URL Analysis Report"
 description: "Get a VirusTotal analysis report for a URL"
 
+tags:
+  - agent-mesh
+  - enrichment
+  - virustotal
+
 triggers:
   - type: manual
 

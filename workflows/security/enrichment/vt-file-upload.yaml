@@ -16,6 +16,11 @@
 name: "VirusTotal - Upload File for Scanning"
 description: "Submit a file to VirusTotal for analysis by 70+ antivirus engines"
 
+tags:
+  - agent-mesh
+  - enrichment
+  - virustotal
+
 triggers:
   - type: manual
 

@@ -17,6 +17,7 @@ description: Index a new document into any Elasticsearch index.
 enabled: true
 
 tags:
+  - agent-mesh
   - data
   - knowledge
 

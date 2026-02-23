@@ -18,6 +18,10 @@
 name: Semantic Knowledge Search
 description: Search for similar knowledge using semantic search with optional namespace and type filters
 
+tags:
+  - agent-mesh
+  - search
+
 inputs:
   - name: index_name
     type: string

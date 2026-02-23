@@ -16,7 +16,7 @@ Multi-agent autonomous SOC built natively on Elastic (Agent Builder + Workflows 
 5. **Investigation Context** — `investigation-contexts` index tracks shared state across multi-agent investigations (`workflows/investigation/`)
 6. **Governance** — `action-policies` index with tiered risk controls; checked before high-impact actions (`workflows/governance/`)
 
-Read `ARCHITECTURE.md` and `ROADMAP.md` before making structural changes.
+Read `ROADMAP.md` before making structural changes.
 
 ## File Conventions
 

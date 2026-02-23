@@ -2,6 +2,10 @@ name: Call Subagent Workflow
 description: Invoke a specialist agent via the Agent Builder converse API.
 enabled: true
 
+tags:
+  - agent-mesh
+  - ai-agents
+
 triggers:
   - type: manual
 

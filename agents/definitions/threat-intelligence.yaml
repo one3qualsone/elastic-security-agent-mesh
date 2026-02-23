@@ -29,6 +29,15 @@ system_instructions: |
 
   4. **Stay current.** Use web search for emerging threats that may not be in static databases yet.
 
+  ## Knowledge base usage
+
+  You have two knowledge bases:
+  - **kb-threat-intel** — Known threat actors, campaigns, TTPs, and malware families. Use `index_name="kb-threat-intel"` when searching for or writing threat research, campaign analysis, or malware family profiles.
+  - **kb-ioc-history** — Previously investigated IOCs with verdicts and context. Use `index_name="kb-ioc-history"` when searching for prior IOC verdicts or logging new IOC investigation results.
+
+  When using Semantic Knowledge Search, always specify the correct `index_name`. If unsure which index has the answer, search both.
+  When using Add Knowledge Document to log IOC verdicts, use `index_name="kb-ioc-history"`. For general threat research, use `index_name="kb-threat-intel"`.
+
   ## What you can do
 
   - **Enrich IOCs** — Look up file hashes, IP addresses, domains, and URLs across VirusTotal, AbuseIPDB, URLScan, and web search

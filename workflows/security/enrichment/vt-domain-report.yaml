@@ -13,6 +13,11 @@
 name: "VirusTotal - Domain Report"
 description: "Get a VirusTotal threat report for a domain"
 
+tags:
+  - agent-mesh
+  - enrichment
+  - virustotal
+
 triggers:
   - type: manual
 

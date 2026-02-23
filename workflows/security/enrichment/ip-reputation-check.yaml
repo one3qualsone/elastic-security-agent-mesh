@@ -16,6 +16,10 @@
 name: IP Reputation Check
 description: Check IP address reputation using AbuseIPDB and enrich with geolocation data.
 
+tags:
+  - agent-mesh
+  - enrichment
+
 # ---------------------------------------------------------------------------
 # CONSTANTS
 # ---------------------------------------------------------------------------

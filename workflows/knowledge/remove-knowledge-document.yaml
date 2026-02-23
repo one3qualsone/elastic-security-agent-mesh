@@ -15,6 +15,7 @@ description: Delete a document from any Elasticsearch index by ID.
 enabled: true
 
 tags:
+  - agent-mesh
   - data
   - knowledge
 

@@ -16,6 +16,7 @@ description: Find documents in an index where a date field is past due (expired 
 enabled: true
 
 tags:
+  - agent-mesh
   - data
   - knowledge
   - scheduled

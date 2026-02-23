@@ -57,12 +57,12 @@ system_instructions: |
   ```json
   {
     "title": "On-Call Rota — Week of 2026-02-23",
-    "content": "Marcus Jeffes is on call from 2026-02-23 to 2026-03-01. Primary contact for all P1/P2 incidents during this period.",
-    "semantic_summary": "On-call schedule showing Marcus Jeffes is on call for the week of 2026-02-23 to 2026-03-01",
+    "content": "Jane Smith is on call from 2026-02-23 to 2026-03-01. Primary contact for all P1/P2 incidents during this period.",
+    "semantic_summary": "On-call schedule showing Jane Smith is on call for the week of 2026-02-23 to 2026-03-01",
     "category": "on-call-rota",
     "tags": ["on-call", "rota", "schedule"],
     "created_at": "2026-02-22T00:00:00Z",
-    "metadata": { "analyst": "Marcus Jeffes", "week_start": "2026-02-23", "week_end": "2026-03-01" }
+    "metadata": { "analyst": "Jane Smith", "week_start": "2026-02-23", "week_end": "2026-03-01" }
   }
   ```
 

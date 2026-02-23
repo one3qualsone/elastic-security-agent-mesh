@@ -13,6 +13,11 @@
 name: "VirusTotal - File Hash Report"
 description: "Get a VirusTotal file report by MD5, SHA-1, or SHA-256 hash"
 
+tags:
+  - agent-mesh
+  - enrichment
+  - virustotal
+
 triggers:
   - type: manual
 

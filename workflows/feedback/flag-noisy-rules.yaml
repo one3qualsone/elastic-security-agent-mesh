@@ -79,7 +79,7 @@ steps:
                   "@timestamp":
                     gte: "now-{{ inputs.lookback_days }}d"
               - term:
-                  kibana.alert.workflow_tags: "false-positive"
+                  kibana.alert.workflow_tags: "Triaged as False Positive by AI"
         aggregations:
           by_rule:
             terms:

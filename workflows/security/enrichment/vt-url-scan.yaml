@@ -12,6 +12,11 @@
 name: "VirusTotal - Scan URL"
 description: "Submit a URL to VirusTotal for threat analysis"
 
+tags:
+  - agent-mesh
+  - enrichment
+  - virustotal
+
 triggers:
   - type: manual
 

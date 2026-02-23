@@ -1,28 +1,8 @@
-<p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://images.contentstack.io/v3/assets/bltefdd0b53724fa2ce/blt5d10f3a91df97d15/620a9ac8849cd422f315b83d/logo-elastic-vertical-reverse.svg">
-    <source media="(prefers-color-scheme: light)" srcset="https://images.contentstack.io/v3/assets/bltefdd0b53724fa2ce/blt36f2da8d650732a0/620a9ac8849cd4798f4a12c0/logo-elastic-vertical-color.svg">
-    <img alt="Elastic Logo" src="https://images.contentstack.io/v3/assets/bltefdd0b53724fa2ce/blt36f2da8d650732a0/620a9ac8849cd4798f4a12c0/logo-elastic-vertical-color.svg" height="80">
-  </picture>
-</p>
+# Security Agent Mesh
 
-<h1 align="center">Security Agent Mesh</h1>
+A multi-agent SOC built on Elastic. Specialist AI agents for detection engineering, threat intelligence, triage, forensics, compliance, and SOC operations, connected through a semantic registry and governed by risk-tiered controls.
 
-<p align="center">
-  A fully autonomous SOC built natively on Elastic — multi-agent mesh with specialist AI agents for detection engineering, threat intelligence, triage, forensics, compliance, and SOC operations.
-</p>
-
-<p align="center">
-  <a href="#setup"><img src="https://img.shields.io/badge/Setup-2D2D2D?style=for-the-badge" alt="Setup"></a>&nbsp;
-  <a href="./ARCHITECTURE.md"><img src="https://img.shields.io/badge/Architecture-2D2D2D?style=for-the-badge" alt="Architecture"></a>&nbsp;
-  <a href="./ROADMAP.md"><img src="https://img.shields.io/badge/Roadmap-2D2D2D?style=for-the-badge" alt="Roadmap"></a>&nbsp;
-</p>
-
-<p align="center">
-  <img src="https://img.shields.io/badge/Elastic-9.3+-00BFB3?style=flat-square&logo=elastic&logoColor=white" alt="Elastic 9.3+">&nbsp;
-  <img src="https://img.shields.io/badge/YAML-CB171E?style=flat-square&logo=yaml&logoColor=white" alt="YAML">&nbsp;
-  <img src="https://img.shields.io/badge/License-Apache_2.0-D16C00?style=flat-square" alt="Apache 2.0">&nbsp;
-</p>
+Requires Elastic 9.3+ with Agent Builder and Workflows enabled.
 
 ---
 
@@ -48,7 +28,7 @@ This project implements a **mesh of specialised security AI agents** on the Elas
 - **Feedback Loops** — scheduled workflows that aggregate detection quality, flag noisy rules, and capture incident resolutions for continuous improvement
 - **Cases as Output** — Elastic Cases are the human-facing record of agent investigations, where humans review decisions and improve agents over time
 
-See [ARCHITECTURE.md](./ARCHITECTURE.md) for the full design and [ROADMAP.md](./ROADMAP.md) for delivery status.
+See [ROADMAP.md](./ROADMAP.md) for delivery status.
 
 ---
 
@@ -152,7 +132,7 @@ python scripts/setup.py
 2. Default governance policies (Tier 0/1/2)
 3. All workflow YAML files imported into Kibana
 4. All workflow-based tools in Agent Builder
-5. All 7 agents with system prompts and workflow tool assignments
+5. All 8 agents with system prompts and workflow tool assignments
 6. Agent registry entries for semantic mesh discovery
 
 ### Phase 2: Manual Tools + Sync
@@ -243,8 +223,25 @@ The script checks for each tool by ID. If `security-mesh.agent-registry`, `webse
 python scripts/setup.py                  # Full setup (Phase 1)
 python scripts/setup.py --validate       # Check environment variables only
 python scripts/setup.py --agents-only    # Re-sync agents with current tools (Phase 2)
-python scripts/setup.py --delete-all     # Delete everything and re-deploy from scratch
+python scripts/setup.py --delete-all     # Delete agents, tools, and workflows, then re-deploy
+python scripts/setup.py --delete-workflows  # Delete workflows only, then re-import
+python scripts/setup.py --indices-only   # Only create indices (idempotent)
+python scripts/setup.py --workflows-only # Only import workflows
+python scripts/setup.py --tools-only     # Only create tools (requires workflows)
+python scripts/setup.py --seed-policies  # Only seed governance policies
 ```
+
+#### Re-deployment Notes
+
+**Workflows require manual deletion before re-import.** The Kibana Workflows API may reject updates to existing workflows. If you need to update workflows after making changes:
+
+1. In Kibana, navigate to **Workflows** and filter by the `agent-mesh` tag (all 57 workflows are tagged)
+2. Select all `agent-mesh` workflows and delete them
+3. Re-run `python scripts/setup.py --workflows-only` to re-import
+
+The `--delete-all` flag handles this automatically for full re-deploys. Agents, tools, and indices are idempotent — re-running the script updates them in place without manual deletion.
+
+> **Important:** The `--delete-all` and `--delete-workflows` flags delete **all** workflows in the target Kibana space, not just `agent-mesh` tagged ones. If you have other workflows in the same space, use the manual deletion approach above to selectively remove only `agent-mesh` workflows.
 
 #### Agents and Tools Reference
 
@@ -436,16 +433,15 @@ elastic-security-agent/
 │   ├── search/                     # Semantic and web search
 │   ├── knowledge/                  # Knowledge base CRUD
 │   ├── ai-agents/                  # Agent invocation patterns
-│   ├── integrations/               # Slack, Splunk, Caldera, etc.
 │   └── utilities/                  # Common operations
 ├── scripts/
 │   ├── setup.py                    # Automated setup script
 │   └── setup.sh                    # Bash wrapper
 ├── docs/
+│   ├── architecture-diagrams.md    # Mermaid diagrams of agent mesh topology
 │   ├── schema.md                   # Workflow YAML schema reference
 │   ├── concepts.md                 # Workflow concepts
 │   └── importing.md                # Manual import instructions
-├── ARCHITECTURE.md                 # Full architecture design
 └── ROADMAP.md                      # Delivery phases and status
 ```
 
@@ -506,12 +502,6 @@ inputs:                         # Optional — runtime parameters
 ```
 
 See [docs/schema.md](./docs/schema.md) for the complete reference and [docs/importing.md](./docs/importing.md) for import instructions.
-
----
-
-## Contributing
-
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ---
 

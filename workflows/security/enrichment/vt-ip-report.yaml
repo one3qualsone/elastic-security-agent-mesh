@@ -13,6 +13,11 @@
 name: "VirusTotal - IP Address Report"
 description: "Get a VirusTotal threat report for an IP address"
 
+tags:
+  - agent-mesh
+  - enrichment
+  - virustotal
+
 triggers:
   - type: manual
 

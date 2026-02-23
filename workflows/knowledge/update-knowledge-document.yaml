@@ -17,6 +17,7 @@ description: Update an existing document in any Elasticsearch index by ID (parti
 enabled: true
 
 tags:
+  - agent-mesh
   - data
   - knowledge
 
