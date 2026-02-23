@@ -49,7 +49,7 @@ Complete these steps in the Kibana UI before running the setup script:
    - Note the inference endpoint ID (default: `.multilingual-e5-small-elasticsearch`)
 
 3. **Note your LLM connector ID**
-   - Elastic Cloud deployments come with Claude connectors out of the box — no setup needed
+   - Elastic Cloud deployments come with LLM connectors out of the box (Claude, Gemini, OpenAI) — no setup needed
    - Find your connector ID by running `GET kbn:/api/actions/connectors` in Kibana Dev Tools
    - If you prefer a different model, create one via Stack Management > Connectors
 
@@ -176,7 +176,7 @@ See the [Web Search Integration](#web-search-integration-mcp--optional-but-recom
 
 #### Step 3: Configure LLM Connector
 
-Elastic Cloud deployments include Claude connectors out of the box. The LLM connector is used in two places:
+Elastic Cloud deployments include Claude connectors out of the box, along with other providers. Claude is what I'd recommend for this project. The LLM connector is used in two places:
 
 **a) Agent Builder UI** — select your LLM connector in the chat/model dropdown when opening each agent.
 
