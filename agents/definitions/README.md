@@ -24,15 +24,15 @@ Each YAML file documents:
 4. **Create the agent in Agent Builder** — Use the `system_instructions` from the definition file. Attach the knowledge bases and tool workflows.
 5. **Register the agent** — Run `agents/setup/register-agent.yaml` with the `registry_entry` values to make the agent discoverable by the orchestrator.
 
-## Current agents
+## Agents
 
-| Definition | Phase | Status |
-|------------|-------|--------|
-| `orchestrator.yaml` | 0 | Not deployed |
-| `detection-engineering.yaml` | 1 | Not deployed |
-| `threat-intelligence.yaml` | 2 | Not deployed |
-| `l1-triage-analyst.yaml` | 3a | Not deployed |
-| `l2-investigation-analyst.yaml` | 3b | Not deployed |
-| `forensics.yaml` | 4 | Not deployed |
-| `compliance.yaml` | 5 | Not deployed |
-| `soc-operations.yaml` | 6 | Not deployed |
+| Definition | Domain |
+|------------|--------|
+| `orchestrator.yaml` | Request routing and classification |
+| `detection-engineering.yaml` | Rule lifecycle, MITRE coverage, SIEM migration |
+| `threat-intelligence.yaml` | IOC enrichment, threat research |
+| `l1-triage-analyst.yaml` | Alert triage, classification, case creation |
+| `l2-investigation-analyst.yaml` | Deep investigation, case lifecycle, evidence |
+| `forensics.yaml` | Endpoint forensics, evidence collection |
+| `compliance.yaml` | Regulatory frameworks, control mapping |
+| `soc-operations.yaml` | Team coordination, shift management |

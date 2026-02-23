@@ -10,7 +10,7 @@ Multi-agent autonomous SOC built natively on Elastic (Agent Builder + Workflows 
 ## Architecture (4 + 2 Layers)
 
 1. **Orchestrator** — routes user/alert requests to specialists via semantic search on `agent-registry`
-2. **Specialist Agents** — Detection Engineering, TI, Analyst, Forensics, Compliance, SOC Ops (each in `agents/definitions/`)
+2. **Specialist Agents** — Detection Engineering, Threat Intelligence, L1 Triage Analyst, L2 Investigation Analyst, Forensics, Compliance, SOC Operations (each in `agents/definitions/`)
 3. **Shared Tool Workflows** — reusable YAML workflows in `workflows/` (enrichment, search, cases, alerts, endpoint, VirusTotal)
 4. **Knowledge Management** — `kb-*` indices with `semantic_text` fields; CRUD via `workflows/knowledge/`
 5. **Investigation Context** — `investigation-contexts` index tracks shared state across multi-agent investigations (`workflows/investigation/`)

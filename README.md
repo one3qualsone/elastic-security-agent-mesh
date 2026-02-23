@@ -447,6 +447,19 @@ elastic-security-agent/
 └── ROADMAP.md                      # Delivery phases and status
 ```
 
+### LLM Context Files
+
+This repository includes documentation aimed at AI coding assistants (Cursor, Copilot, etc.) to help them understand the project when you're working on it. You'll notice some overlap with the main README — that's intentional. These files give LLMs focused context without needing to parse the full README.
+
+| File | Purpose |
+|------|---------|
+| `.cursor/rules/project-context.mdc` | Cursor rule that auto-loads project architecture, file conventions, and workflow patterns into every AI session |
+| `agents/definitions/README.md` | Agent definition schema and deployment steps — helps LLMs understand how agent YAML files are structured |
+| `agents/setup/README.md` | Index creation order and knowledge base mapping schema |
+| `workflows/*/README.md` | Per-folder workflow summaries. Some were auto-generated early in development and may list fewer workflows than currently exist — the agents and tools reference table above is authoritative |
+
+If you're forking this to build your own mesh, these files are a good starting point for grounding your AI assistant in the project structure. Update them as you add agents or change the architecture.
+
 ---
 
 ## Workflow Reference
