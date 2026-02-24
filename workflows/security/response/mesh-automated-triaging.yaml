@@ -6,8 +6,8 @@
 # When an alert fires, this workflow:
 #   1. Creates an investigation context for state tracking
 #   2. Looks up the L1 Triage Analyst in the agent registry
-#   3. Routes the alert to the analyst agent via Agent Builder
-#   4. Lets the analyst decide on escalation to Forensics or others
+#   3. Routes the alert to L1 with full context (no alert re-search needed)
+#   4. Chains to L2 Investigation Analyst for enrichment and response
 #   5. Records findings and logs everything for audit
 #
 # This is the primary entry point from alert -> agent mesh.
@@ -120,26 +120,74 @@ steps:
         input: |
           Triage this security alert. Investigation document ID: {{ steps.create_investigation.output.data._id }}
 
+          IMPORTANT: Do NOT search for this alert using Security Alerts — all context is provided below.
+
           Alert Rule: {{ event.alerts[0].kibana.alert.rule.name }}
           Alert ID: {{ event.alerts[0]._id }}
           Severity: {{ event.alerts[0].kibana.alert.severity }}
           Risk Score: {{ event.alerts[0].kibana.alert.risk_score }}
           Host: {{ event.alerts[0].host.name }}
+          Source IP: {{ event.alerts[0].source.ip }}
+          User: {{ event.alerts[0].user.name }}
+          Rule Description: {{ event.alerts[0].kibana.alert.rule.description }}
+          Alert Timestamp: {{ event.alerts[0].kibana.alert.original_time }}
+          Rule Query Output: {{ event.alerts[0].kibana.alert.rule.parameters.description }}
 
           Instructions:
-          1. Analyse the alert and determine if it is a true positive or false positive
-          2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents)
+          1. Analyse the alert context above and determine if it is a true positive or false positive
+          2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents) but do NOT re-search for the alert itself
           3. Add your findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
-          4. If true positive: tag the alert, create a case, then ALWAYS escalate to the L2 Investigation Analyst using Call Subagent for deeper analysis and threat intelligence enrichment. Do not just recommend escalation — execute it.
+          4. If true positive: tag the alert and create a case
           5. If false positive: tag the alert, close it, and document why
+          6. Do NOT escalate — the workflow handles escalation automatically after your triage
     timeout: 600s
+
+  - name: invoke_l2
+    type: http
+    on-failure:
+      continue: true
+    with:
+      method: POST
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/agent_builder/converse"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+      body:
+        agent_id: "security-mesh.l2-investigation-analyst"
+        connector_id: "__LLM_CONNECTOR_ID__"
+        input: |
+          L1 triage is complete for this alert. Take over the investigation.
+
+          Alert Rule: {{ event.alerts[0].kibana.alert.rule.name }}
+          Alert ID: {{ event.alerts[0]._id }}
+          Severity: {{ event.alerts[0].kibana.alert.severity }}
+          Host: {{ event.alerts[0].host.name }}
+          Investigation ID: {{ steps.create_investigation.output.data._id }}
+
+          L1 Analysis:
+          {{ steps.invoke_analyst.output.data.response.message }}
+
+          Instructions:
+          1. Enrich the source IP using the Threat Intelligence agent via Call Subagent
+          2. Add enrichment findings to the investigation
+          3. Based on findings, determine if host isolation is warranted
+          4. If isolation needed, propose it through the governance framework
+    timeout: 600s
+
+  - name: log_l2_response
+    type: console
+    on-failure:
+      continue: true
+    with:
+      message: "L2 agent response: {{ steps.invoke_l2.output.data.response.message }}"
 
   - name: log_analyst_response
     type: console
     on-failure:
       continue: true
     with:
-      message: "Analyst agent response: {{ steps.invoke_analyst.output.data.response.message }}"
+      message: "L1 agent response: {{ steps.invoke_analyst.output.data.response.message }}"
 
   - name: record_analyst_evidence
     type: http
