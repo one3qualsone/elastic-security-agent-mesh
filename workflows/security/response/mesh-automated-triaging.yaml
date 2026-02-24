@@ -3,15 +3,16 @@
 # Category: security/response
 #
 # Alert-triggered triage that bridges security alerts into the agent mesh.
-# Unlike ad-automated-triaging.yaml (which uses raw AI assistant calls),
-# this workflow:
+# When an alert fires, this workflow:
 #   1. Creates an investigation context for state tracking
-#   2. Enriches via the Threat Intelligence agent
-#   3. Routes to the L1 Triage Analyst agent via Agent Builder
+#   2. Looks up the L1 Triage Analyst in the agent registry
+#   3. Routes the alert to the analyst agent via Agent Builder
 #   4. Lets the analyst decide on escalation to Forensics or others
-#   5. Creates a case and logs everything for audit
+#   5. Records findings and logs everything for audit
 #
 # This is the primary entry point from alert -> agent mesh.
+# Uses event.alerts[0] to access the first alert from the trigger
+# payload (foreach on event.alerts fails due to payload size).
 #
 # Author: Security Agent Mesh
 # =============================================================================
@@ -36,172 +37,133 @@ consts:
 
 steps:
 
-  - name: for_each_alert
-    type: foreach
-    foreach: alerts
-    steps:
+  - name: create_investigation
+    type: http
+    with:
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_doc"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
+        investigation_id: "inv-{{ event.alerts[0]._id }}"
+        title: "Alert Triage: {{ event.alerts[0].kibana.alert.rule.name }}"
+        trigger_type: "alert"
+        trigger_ref: "{{ event.alerts[0]._id }}"
+        status: "open"
+        risk_tier: "tier_0"
+        assigned_agent: ""
+        summary: ""
+        semantic_summary: "Alert triage for {{ event.alerts[0].kibana.alert.rule.name }}. {{ event.alerts[0].kibana.alert.rule.description }}"
+        evidence: []
+        actions_taken: []
+        pending_actions: []
+        tags:
+          - alert-triage
+          - automated
+        created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+        updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
 
-      - name: create_investigation
-        type: http
-        with:
-          method: POST
-          url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_doc"
-          headers:
-            Content-Type: application/json
-            Authorization: "ApiKey {{ consts.es_api_key }}"
-          body:
-            investigation_id: "inv-{{ foreach.item._id }}"
-            title: "Alert Triage: {{ foreach.item.kibana.alert.rule.name }}"
-            trigger_type: "alert"
-            trigger_ref: "{{ foreach.item._id }}"
-            status: "open"
-            risk_tier: "tier_0"
-            assigned_agent: ""
-            summary: ""
-            semantic_summary: "Alert triage for {{ foreach.item.kibana.alert.rule.name }}. {{ foreach.item.kibana.alert.rule.description }}"
-            evidence: []
-            actions_taken: []
-            pending_actions: []
-            tags:
-              - alert-triage
-              - automated
-            created_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
-            updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+  - name: log_investigation_created
+    type: console
+    with:
+      message: "Investigation created for alert {{ event.alerts[0]._id }}: {{ event.alerts[0].kibana.alert.rule.name }}"
 
-      - name: log_investigation_created
-        type: console
-        with:
-          message: "Investigation created for alert {{ foreach.item._id }}: {{ foreach.item.kibana.alert.rule.name }}"
+  - name: find_analyst_agent
+    type: http
+    with:
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.registry_index }}/_search"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
+        size: 1
+        query:
+          bool:
+            must:
+              - term:
+                  status: "active"
+              - term:
+                  domain: "triage"
 
-      - name: get_alert_details
-        type: http
-        with:
-          method: POST
-          url: "{{ consts.es_url }}/{{ consts.alerts_index }}/_search"
-          headers:
-            Content-Type: application/json
-            Authorization: "ApiKey {{ consts.es_api_key }}"
-          body:
-            size: 1
-            query:
-              match:
-                _id: "{{ foreach.item._id }}"
+  - name: update_assignment
+    type: http
+    on-failure:
+      continue: true
+    with:
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output.data._id }}"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
+        doc:
+          assigned_agent: "{{ steps.find_analyst_agent.output.data.hits.hits[0]._source.agent_id }}"
+          status: "investigating"
+          updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
 
-      - name: find_analyst_agent
-        type: http
-        with:
-          method: POST
-          url: "{{ consts.es_url }}/{{ consts.registry_index }}/_search"
-          headers:
-            Content-Type: application/json
-            Authorization: "ApiKey {{ consts.es_api_key }}"
-          body:
-            size: 1
-            query:
-              bool:
-                must:
-                  - term:
-                      status: "active"
-                  - term:
-                      domain: "triage"
+  - name: invoke_analyst
+    type: http
+    on-failure:
+      continue: true
+    with:
+      method: POST
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/agent_builder/converse"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+      body:
+        agent_id: "{{ steps.find_analyst_agent.output.data.hits.hits[0]._source.agent_id }}"
+        connector_id: "__LLM_CONNECTOR_ID__"
+        input: |
+          Triage this security alert. Investigation document ID: {{ steps.create_investigation.output.data._id }}
 
-      - name: check_analyst_found
-        type: if
-        condition: steps.find_analyst_agent.output.data.hits.total.value > 0
-        steps:
+          Alert Rule: {{ event.alerts[0].kibana.alert.rule.name }}
+          Alert ID: {{ event.alerts[0]._id }}
+          Severity: {{ event.alerts[0].kibana.alert.severity }}
+          Risk Score: {{ event.alerts[0].kibana.alert.risk_score }}
+          Host: {{ event.alerts[0].host.name }}
 
-          - name: update_assignment
-            type: http
-            with:
-              method: POST
-              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output.data._id }}"
-              headers:
-                Content-Type: application/json
-                Authorization: "ApiKey {{ consts.es_api_key }}"
-              body:
-                doc:
-                  assigned_agent: "{{ steps.find_analyst_agent.output.data.hits.hits[0]._source.agent_id }}"
-                  status: "investigating"
-                  updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+          Instructions:
+          1. Analyse the alert and determine if it is a true positive or false positive
+          2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents)
+          3. Add your findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
+          4. If true positive: tag the alert, create a case, then ALWAYS escalate to the L2 Investigation Analyst using Call Subagent for deeper analysis and threat intelligence enrichment. Do not just recommend escalation — execute it.
+          5. If false positive: tag the alert, close it, and document why
+    timeout: 600s
 
-          - name: invoke_analyst
-            type: http
-            with:
-              method: POST
-              url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/agent_builder/converse"
-              headers:
-                Content-Type: application/json
-                Authorization: "ApiKey __KIBANA_API_KEY__"
-                kbn-xsrf: "true"
-              body:
-                agent_id: "{{ steps.find_analyst_agent.output.data.hits.hits[0]._source.agent_id }}"
-                connector_id: "__LLM_CONNECTOR_ID__"
-                input: |
-                  Triage this security alert. Investigation document ID: {{ steps.create_investigation.output.data._id }}
+  - name: log_analyst_response
+    type: console
+    on-failure:
+      continue: true
+    with:
+      message: "Analyst agent response: {{ steps.invoke_analyst.output.data.response.message }}"
 
-                  Alert Rule: {{ foreach.item.kibana.alert.rule.name }}
-                  Alert ID: {{ foreach.item._id }}
-                  Severity: {{ foreach.item.kibana.alert.severity }}
-                  Risk Score: {{ foreach.item.kibana.alert.risk_score }}
-
-                  Alert details:
-                  {{ foreach.item | json }}
-
-                  Instructions:
-                  1. Analyse the alert and determine if it is a true positive or false positive
-                  2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents)
-                  3. Add your findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
-                  4. If true positive: tag the alert, create a case, and escalate to forensics if needed
-                  5. If false positive: tag the alert, close it, and document why
-            timeout: 600s
-
-          - name: log_analyst_response
-            type: console
-            with:
-              message: "Analyst agent response: {{ steps.invoke_analyst.output.data.response.message }}"
-
-          - name: record_analyst_evidence
-            type: http
-            with:
-              method: POST
-              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output.data._id }}"
-              headers:
-                Content-Type: application/json
-                Authorization: "ApiKey {{ consts.es_api_key }}"
-              body:
-                script:
-                  source: |
-                    if (ctx._source.evidence == null) { ctx._source.evidence = []; }
-                    ctx._source.evidence.add(params.entry);
-                    ctx._source.updated_at = params.now;
-                  params:
-                    entry:
-                      agent_id: "{{ steps.find_analyst_agent.output.data.hits.hits[0]._source.agent_id }}"
-                      timestamp: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
-                      evidence_type: "finding"
-                      content: "{{ steps.invoke_analyst.output.data.response.message }}"
-                      confidence: 0.8
-                      references:
-                        - "{{ foreach.item._id }}"
-                    now: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
-
-        else:
-
-          - name: no_analyst_available
-            type: console
-            with:
-              message: "No analyst agent found in registry. Alert {{ foreach.item._id }} requires manual triage."
-
-          - name: update_status_manual
-            type: http
-            with:
-              method: POST
-              url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output.data._id }}"
-              headers:
-                Content-Type: application/json
-                Authorization: "ApiKey {{ consts.es_api_key }}"
-              body:
-                doc:
-                  status: "escalated"
-                  summary: "No analyst agent available — requires manual triage"
-                  updated_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+  - name: record_analyst_evidence
+    type: http
+    on-failure:
+      continue: true
+    with:
+      method: POST
+      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output.data._id }}"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
+        script:
+          source: |
+            if (ctx._source.evidence == null) { ctx._source.evidence = []; }
+            ctx._source.evidence.add(params.entry);
+            ctx._source.updated_at = params.now;
+          params:
+            entry:
+              agent_id: "{{ steps.find_analyst_agent.output.data.hits.hits[0]._source.agent_id }}"
+              timestamp: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+              evidence_type: "finding"
+              content: "{{ steps.invoke_analyst.output.data.response.message }}"
+              confidence: 0.8
+              references:
+                - "{{ event.alerts[0]._id }}"
+            now: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
