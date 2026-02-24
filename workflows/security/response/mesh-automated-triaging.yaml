@@ -169,7 +169,7 @@ steps:
           The Threat Intelligence agent ID is: security-mesh.threat-intelligence-agent (use this exact ID with Call Subagent).
 
           Instructions (execute in this order):
-          1. Extract the source IP from the alert data — use ES|QL to query: FROM .alerts-security.alerts-default | WHERE host.hostname == "<hostname>" AND kibana.alert.rule.name LIKE "*SSH Brute Force*" | KEEP source.ip | LIMIT 1
+          1. Extract the source IP from the alert data — use ES|QL to query the alerts index filtering by the hostname and alert rule name from the context above, keeping source.ip. Sort by @timestamp DESC and LIMIT 1 to get the latest.
           2. Call the Threat Intelligence agent (security-mesh.threat-intelligence-agent) via Call Subagent to enrich the source IP
           3. Add a case comment (Add Case Comment) to the case with your enrichment findings — this is CRITICAL for the audit trail
           4. Add enrichment findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
