@@ -127,17 +127,13 @@ steps:
           Severity: {{ event.alerts[0].kibana.alert.severity }}
           Risk Score: {{ event.alerts[0].kibana.alert.risk_score }}
           Host: {{ event.alerts[0].host.name }}
-          Source IP: {{ event.alerts[0].source.ip }}
-          User: {{ event.alerts[0].user.name }}
           Rule Description: {{ event.alerts[0].kibana.alert.rule.description }}
-          Alert Timestamp: {{ event.alerts[0].kibana.alert.original_time }}
-          Rule Query Output: {{ event.alerts[0].kibana.alert.rule.parameters.description }}
 
           Instructions:
           1. Analyse the alert context above and determine if it is a true positive or false positive
           2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents) but do NOT re-search for the alert itself
           3. Add your findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
-          4. If true positive: tag the alert and create a case
+          4. If true positive: tag the alert, create a case, then use Add Case Comment to add your triage summary to the case
           5. If false positive: tag the alert, close it, and document why
           6. Do NOT escalate — the workflow handles escalation automatically after your triage
     timeout: 600s
@@ -168,11 +164,17 @@ steps:
           L1 Analysis:
           {{ steps.invoke_analyst.output.data.response.message }}
 
-          Instructions:
-          1. Enrich the source IP using the Threat Intelligence agent via Call Subagent
-          2. Add enrichment findings to the investigation
-          3. Based on findings, determine if host isolation is warranted
-          4. If isolation needed, propose it through the governance framework
+          IMPORTANT — Read L1's analysis above carefully. It contains the Case ID you need for adding comments. Extract it from the L1 output.
+
+          The Threat Intelligence agent ID is: security-mesh.threat-intelligence-agent (use this exact ID with Call Subagent).
+
+          Instructions (execute in this order):
+          1. Extract the source IP from the alert data — use ES|QL to query: FROM .alerts-security.alerts-default | WHERE host.hostname == "<hostname>" AND kibana.alert.rule.name LIKE "*SSH Brute Force*" | KEEP source.ip | LIMIT 1
+          2. Call the Threat Intelligence agent (security-mesh.threat-intelligence-agent) via Call Subagent to enrich the source IP
+          3. Add a case comment (Add Case Comment) to the case with your enrichment findings — this is CRITICAL for the audit trail
+          4. Add enrichment findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
+          5. Based on findings, determine if host isolation is warranted
+          6. If isolation needed, propose it through the governance framework
     timeout: 600s
 
   - name: log_l2_response

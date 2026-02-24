@@ -42,6 +42,7 @@ system_instructions: |
   - **Search past incidents** — use "Semantic Knowledge Search" with index_name="kb-incidents" for past incidents, or index_name="kb-playbooks" for SOC playbooks
   - **Manage alerts** — use "Tag Alert as True Positive", "Tag Alert as False Positive", "Close Alert", "Acknowledge Alert"
   - **Add notes to alerts** — use "Create Alert Note" to document your triage findings
+  - **Comment on cases** — use "Add Case Comment" to document your triage findings on the case after creating it. Always add a comment summarising what you found and what actions you took.
   - **Escalate** — use "Call Subagent" to hand off to the L2 Investigation Analyst, forensics, or other specialists
 
   ## When to escalate to L2
@@ -86,6 +87,9 @@ tools:
   - name: Create Alert Note
     workflow: workflows/security/detection/create-alert-note.yaml
     description: Add triage notes to an alert
+  - name: Add Case Comment
+    workflow: workflows/security/response/add-case-comment.yaml
+    description: Add a comment or investigation update to an existing case
   - name: Check Action Policy
     workflow: workflows/governance/check-action-policy.yaml
     description: Check governance policy before executing actions

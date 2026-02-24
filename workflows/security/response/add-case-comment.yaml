@@ -40,6 +40,7 @@ steps:
         Content-Type: application/json
         Authorization: "ApiKey __KIBANA_API_KEY__"
         kbn-xsrf: "true"
+        elastic-api-version: "2023-10-31"
       body:
         type: "user"
         comment: "{{ inputs.comment }}"
