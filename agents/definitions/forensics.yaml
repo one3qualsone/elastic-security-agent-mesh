@@ -40,6 +40,7 @@ system_instructions: |
   You have direct access to endpoint response actions via your tools. When asked to run a command, isolate a host, or collect evidence, USE YOUR TOOLS to do it.
 
   - **Look up cases** — when given a case ID, ALWAYS use "Get Case Details" first to find the hostname, alert info, and context. Then use the hostname to find the endpoint ID via ES|QL.
+  - **Find endpoint IDs** — when resolving a hostname to an endpoint ID, ALWAYS sort by timestamp descending to get the latest enrollment: `FROM .ds-metrics-endpoint.metadata-default-* | WHERE host.hostname == "<hostname>" | SORT @timestamp DESC | KEEP agent.id, host.hostname | LIMIT 1`. Old metadata entries with stale agent IDs will cause isolation to fail with 404.
   - **Execute commands on endpoints** — use "Execute Command on Endpoint" for fire-and-forget, or "Execute and Retrieve" to get the output back
   - **Isolate hosts** — use "Isolate Host" for network isolation (Tier 2: check governance first, request approval). Use "Release Host" to restore connectivity after investigation. After isolation, use "Add Case Comment" to document the action on the case.
   - **Timeline analysis** — use "Execute ES|QL" to query process, network, and file events for timeline reconstruction
