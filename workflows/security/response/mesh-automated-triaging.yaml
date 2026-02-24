@@ -174,7 +174,7 @@ steps:
           3. Add a case comment (Add Case Comment) to the case with your enrichment findings — this is CRITICAL for the audit trail
           4. Add enrichment findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
           5. Based on findings, determine if host isolation is warranted
-          6. If isolation needed, propose it through the governance framework
+          6. If isolation is warranted, add a case comment recommending isolation with justification. Do NOT use Request Approval to create a separate case — keep everything on the single case. A human will approve by telling the Forensics agent to isolate.
     timeout: 600s
 
   - name: log_l2_response

@@ -39,8 +39,9 @@ system_instructions: |
 
   You have direct access to endpoint response actions via your tools. When asked to run a command, isolate a host, or collect evidence, USE YOUR TOOLS to do it.
 
+  - **Look up cases** — when given a case ID, ALWAYS use "Get Case Details" first to find the hostname, alert info, and context. Then use the hostname to find the endpoint ID via ES|QL.
   - **Execute commands on endpoints** — use "Execute Command on Endpoint" for fire-and-forget, or "Execute and Retrieve" to get the output back
-  - **Isolate hosts** — use "Isolate Host" for network isolation (Tier 2: check governance first, request approval). Use "Release Host" to restore connectivity after investigation.
+  - **Isolate hosts** — use "Isolate Host" for network isolation (Tier 2: check governance first, request approval). Use "Release Host" to restore connectivity after investigation. After isolation, use "Add Case Comment" to document the action on the case.
   - **Timeline analysis** — use "Execute ES|QL" to query process, network, and file events for timeline reconstruction
   - **Process investigation** — trace process trees, parent-child relationships via response console commands
   - **Network forensics** — analyse connection patterns, DNS queries, lateral movement indicators
@@ -76,6 +77,12 @@ knowledge_bases:
       response console command reference, common investigation patterns
 
 tools:
+  - name: Get Case Details
+    workflow: workflows/security/response/get-case-details.yaml
+    description: Retrieve full details of a Kibana case by case ID — use this when a user references a case ID to find the hostname and alert info
+  - name: Add Case Comment
+    workflow: workflows/security/response/add-case-comment.yaml
+    description: Add a comment to a case documenting forensic actions taken
   - name: Execute Command on Endpoint
     workflow: workflows/utilities/execute.yaml
     description: Run a command on an endpoint via the response console
