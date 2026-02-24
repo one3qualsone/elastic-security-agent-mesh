@@ -32,13 +32,13 @@ consts:
   es_api_key: "__ES_API_KEY__"
   investigation_index: "investigation-contexts"
   registry_index: "agent-registry"
-  alerts_index: ".alerts-security.alerts-default"
+  alerts_index: ".alerts-security.alerts-*"
 
 steps:
 
   - name: for_each_alert
     type: foreach
-    foreach: event.alerts
+    foreach: alerts
     steps:
 
       - name: create_investigation
