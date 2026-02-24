@@ -22,7 +22,7 @@ triggers:
 inputs:
   - name: document_id
     type: string
-    description: "Investigation context document ID"
+    description: "The Elasticsearch document _id of the investigation context (from the investigation-contexts index). This is NOT the case ID — use the _id returned when the investigation was created."
     required: true
   - name: agent_id
     type: string

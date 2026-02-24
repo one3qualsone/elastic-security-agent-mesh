@@ -41,6 +41,7 @@ steps:
       headers:
         Authorization: "ApiKey __KIBANA_API_KEY__"
         kbn-xsrf: "true"
+        elastic-api-version: "2023-10-31"
 
   - name: output_status
     type: console
