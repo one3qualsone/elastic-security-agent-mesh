@@ -461,14 +461,14 @@ def seed_action_policies():
 def build_replacements():
     """Build the token → value map for injecting secrets into workflow YAML."""
     return {
-        "__ES_URL__": os.environ.get("ELASTIC_CLOUD_URL", ""),
-        "__ES_API_KEY__": os.environ.get("ES_API_KEY", ""),
-        "__KIBANA_URL__": os.environ.get("KIBANA_URL", ""),
-        "__KIBANA_API_KEY__": os.environ.get("KIBANA_API_KEY", ""),
-        "__KIBANA_SPACE__": os.environ.get("KIBANA_SPACE", "default"),
-        "__VT_API_KEY__": os.environ.get("VIRUSTOTAL_API_KEY", ""),
-        "__ABUSEIPDB_API_KEY__": os.environ.get("ABUSEIPDB_API_KEY", ""),
-        "__LLM_CONNECTOR_ID__": os.environ.get("LLM_CONNECTOR_ID", ""),
+        "__ES_URL__": os.environ.get("ELASTIC_CLOUD_URL", "").strip(),
+        "__ES_API_KEY__": os.environ.get("ES_API_KEY", "").strip(),
+        "__KIBANA_URL__": os.environ.get("KIBANA_URL", "").strip(),
+        "__KIBANA_API_KEY__": os.environ.get("KIBANA_API_KEY", "").strip(),
+        "__KIBANA_SPACE__": os.environ.get("KIBANA_SPACE", "default").strip(),
+        "__VT_API_KEY__": os.environ.get("VIRUSTOTAL_API_KEY", "").strip(),
+        "__ABUSEIPDB_API_KEY__": os.environ.get("ABUSEIPDB_API_KEY", "").strip(),
+        "__LLM_CONNECTOR_ID__": os.environ.get("LLM_CONNECTOR_ID", "").strip(),
     }
 
 

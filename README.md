@@ -74,7 +74,7 @@ The setup requires environment variables for your Elastic deployment. You can pr
 | `KIBANA_URL` | Kibana endpoint URL |
 | `ES_API_KEY` | Elasticsearch API key (cluster + index permissions) |
 | `KIBANA_API_KEY` | Kibana API key (Workflows, Cases, Security) |
-| `LLM_CONNECTOR_ID` | The LLM connector ID for agent-to-agent calls. We recommend **Claude Opus 4.5** (`Anthropic-Claude-Opus-4-5`) for best results, or **Claude Sonnet 4.5** (`Anthropic-Claude-Sonnet-4-5`) for lower cost. When Elastic 9.4 ships (April 2026), this can be updated to Claude Opus 4.6. Find your connector ID by running `GET kbn:/api/actions/connectors` in Kibana Dev Tools. |
+| `LLM_CONNECTOR_ID` | The LLM connector ID for agent-to-agent calls. We recommend **Claude Sonnet 4.5** (`Anthropic-Claude-Sonnet-4-5`) — it's fast, cost-effective, and excellent at tool-calling. **Claude Opus 4.5** (`Anthropic-Claude-Opus-4-5`) is available if you need heavier reasoning but consumes significantly more tokens. Find your connector ID by running `GET kbn:/api/actions/connectors` in Kibana Dev Tools. |
 
 **Recommended:**
 
