@@ -34,7 +34,7 @@ steps:
   - name: add_note
     type: http
     with:
-      method: POST
+      method: PATCH
       url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/note"
       headers:
         Content-Type: application/json

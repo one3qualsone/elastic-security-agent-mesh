@@ -2,15 +2,16 @@
 # Workflow: Request Approval
 # Category: governance
 #
-# Creates an Elastic Case when a Tier 2 action needs human authorisation.
-# The case includes the action details, justification, risk tier, and a
-# link to the investigation context. Humans review and approve/deny
-# directly in Kibana — no external tools required.
+# Adds a structured approval request as a comment on an existing case.
+# Used when a Tier 2 action needs human authorisation. The comment
+# includes the action details, justification, risk tier, and clear
+# approve/deny instructions. Humans review and respond directly in
+# the case — no separate approval case needed.
 #
 # Author: Security Agent Mesh
 # =============================================================================
 name: Request Approval
-description: Create an Elastic Case for a Tier 2 governance-gated action requiring human approval.
+description: Request human approval for a Tier 2 governance-gated action on an existing case.
 enabled: true
 
 tags:
@@ -21,6 +22,10 @@ triggers:
   - type: manual
 
 inputs:
+  - name: case_id
+    type: string
+    description: "The existing case ID to add the approval request to"
+    required: true
   - name: action_type
     type: string
     description: "The action requiring approval (e.g., isolate_host)"
@@ -37,29 +42,26 @@ inputs:
     type: string
     description: "Risk tier of the action"
     required: true
-  - name: investigation_id
-    type: string
-    description: "Related investigation context document ID"
-    required: false
   - name: target
     type: string
-    description: "What the action targets (host ID, rule ID, etc.)"
+    description: "What the action targets (hostname, endpoint ID, rule ID, etc.)"
     required: true
 
 steps:
 
-  - name: create_approval_case
+  - name: add_approval_comment
     type: http
     with:
       method: POST
-      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/cases"
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/cases/{{ inputs.case_id }}/comments"
       headers:
         Content-Type: application/json
         Authorization: "ApiKey __KIBANA_API_KEY__"
         kbn-xsrf: "true"
+        elastic-api-version: "2023-10-31"
       body:
-        title: "Approval Required: {{ inputs.action_type }} — {{ inputs.target }}"
-        description: |
+        type: "user"
+        comment: |
           ## Tier 2 Action — Human Approval Required
 
           | Field | Value |
@@ -68,7 +70,6 @@ steps:
           | **Target** | {{ inputs.target }} |
           | **Risk Tier** | {{ inputs.risk_tier }} |
           | **Recommended by** | {{ inputs.recommending_agent }} |
-          | **Investigation** | {{ inputs.investigation_id | default: 'N/A' }} |
 
           ### Justification
 
@@ -76,23 +77,11 @@ steps:
 
           ---
 
-          **To approve:** Add a comment with `APPROVED` and close the case.
-          **To deny:** Add a comment with `DENIED` and the reason, then close the case.
+          **To approve:** Reply with APPROVED
+          **To deny:** Reply with DENIED and the reason
         owner: "securitySolution"
-        tags:
-          - governance
-          - tier-2-approval
-          - "{{ inputs.action_type }}"
-        severity: "high"
-        settings:
-          syncAlerts: false
-        connector:
-          id: "none"
-          name: "none"
-          type: ".none"
-          fields: null
 
   - name: confirm
     type: console
     with:
-      message: "Approval case created for {{ inputs.action_type }} targeting {{ inputs.target }} — case ID: {{ steps.create_approval_case.output.data.id }}"
+      message: "Approval requested on case {{ inputs.case_id }} for {{ inputs.action_type }} targeting {{ inputs.target }}"

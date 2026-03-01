@@ -7,10 +7,12 @@
 #   1. Creates an investigation context for state tracking
 #   2. Looks up the L1 Triage Analyst in the agent registry
 #   3. Routes the alert to L1 with full context (no alert re-search needed)
-#   4. Chains to L2 Investigation Analyst for enrichment and response
-#   5. Records findings and logs everything for audit
+#   4. Records findings for audit
 #
-# This is the primary entry point from alert -> agent mesh.
+# L1 owns the escalation decision — if the alert warrants deeper
+# investigation, L1 calls L2 via its Call Subagent tool autonomously.
+# The workflow does NOT force an L2 call.
+#
 # Uses event.alerts[0] to access the first alert from the trigger
 # payload (foreach on event.alerts fails due to payload size).
 #
@@ -129,60 +131,16 @@ steps:
           Host: {{ event.alerts[0].host.name }}
           Rule Description: {{ event.alerts[0].kibana.alert.rule.description }}
 
+          The L2 Investigation Analyst agent_id is: security-mesh.l2-investigation-analyst
+
           Instructions:
-          1. Analyse the alert context above and determine if it is a true positive or false positive
-          2. Use your enrichment tools to gather additional context (IOC reputation, similar past incidents) but do NOT re-search for the alert itself
+          1. Analyse the alert context above — determine true positive or false positive
+          2. Search for similar past incidents and applicable playbooks using Semantic Knowledge Search
           3. Add your findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
-          4. If true positive: tag the alert, create a case, then use Add Case Comment to add your triage summary to the case
+          4. If true positive: tag the alert, create a case, link the alert to it, and add a case comment with your triage summary
           5. If false positive: tag the alert, close it, and document why
-          6. Do NOT escalate — the workflow handles escalation automatically after your triage
+          6. If this is a true positive requiring deeper investigation, escalate to the L2 Investigation Analyst via Call Subagent — pass the case ID, alert details, and your analysis so L2 can continue on the same case
     timeout: 600s
-
-  - name: invoke_l2
-    type: http
-    on-failure:
-      continue: true
-    with:
-      method: POST
-      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/agent_builder/converse"
-      headers:
-        Content-Type: application/json
-        Authorization: "ApiKey __KIBANA_API_KEY__"
-        kbn-xsrf: "true"
-      body:
-        agent_id: "security-mesh.l2-investigation-analyst"
-        connector_id: "__LLM_CONNECTOR_ID__"
-        input: |
-          L1 triage is complete for this alert. Take over the investigation.
-
-          Alert Rule: {{ event.alerts[0].kibana.alert.rule.name }}
-          Alert ID: {{ event.alerts[0]._id }}
-          Severity: {{ event.alerts[0].kibana.alert.severity }}
-          Host: {{ event.alerts[0].host.name }}
-          Investigation ID: {{ steps.create_investigation.output.data._id }}
-
-          L1 Analysis:
-          {{ steps.invoke_analyst.output.data.response.message }}
-
-          IMPORTANT — Read L1's analysis above carefully. It contains the Case ID you need for adding comments. Extract it from the L1 output.
-
-          The Threat Intelligence agent ID is: security-mesh.threat-intelligence-agent (use this exact ID with Call Subagent).
-
-          Instructions (execute in this order):
-          1. Extract the source IP from the alert data — use ES|QL to query the alerts index filtering by the hostname and alert rule name from the context above, keeping source.ip. Sort by @timestamp DESC and LIMIT 1 to get the latest.
-          2. Call the Threat Intelligence agent (security-mesh.threat-intelligence-agent) via Call Subagent to enrich the source IP
-          3. Add a case comment (Add Case Comment) to the case with your enrichment findings — this is CRITICAL for the audit trail
-          4. Add enrichment findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
-          5. Based on findings, determine if host isolation is warranted
-          6. If isolation is warranted, add a case comment recommending isolation with justification. Do NOT use Request Approval to create a separate case — keep everything on the single case. A human will approve by telling the Forensics agent to isolate.
-    timeout: 600s
-
-  - name: log_l2_response
-    type: console
-    on-failure:
-      continue: true
-    with:
-      message: "L2 agent response: {{ steps.invoke_l2.output.data.response.message }}"
 
   - name: log_analyst_response
     type: console
