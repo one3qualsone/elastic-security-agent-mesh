@@ -57,13 +57,107 @@ steps:
           command: "{{ inputs.command }}"
           timeout: 600
 
-  - name: wait
+  # ── Poll for completion with escalating backoff ─────────────────────────
+  # Checks at 5s, 15s, 30s, 45s, 60s. Short-circuits as soon as the command completes.
+
+  - name: wait_1
     type: wait
     with:
-      duration: 60s
+      duration: 5s
 
+  - name: check_1
+    type: http
+    on-failure:
+      continue: true
+    with:
+      method: GET
+      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/endpoint/action/{{ steps.execute_action.output.data.data.id }}"
+      headers:
+        Authorization: "ApiKey __KIBANA_API_KEY__"
+        kbn-xsrf: "true"
+        elastic-api-version: "2023-10-31"
+
+  - name: poll_if_pending_1
+    type: if
+    condition: 'steps.check_1.output.data.data.isCompleted: "false"'
+    steps:
+
+      - name: wait_2
+        type: wait
+        with:
+          duration: 10s
+
+      - name: check_2
+        type: http
+        on-failure:
+          continue: true
+        with:
+          method: GET
+          url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/endpoint/action/{{ steps.execute_action.output.data.data.id }}"
+          headers:
+            Authorization: "ApiKey __KIBANA_API_KEY__"
+            kbn-xsrf: "true"
+            elastic-api-version: "2023-10-31"
+
+      - name: poll_if_pending_2
+        type: if
+        condition: 'steps.check_2.output.data.data.isCompleted: "false"'
+        steps:
+
+          - name: wait_3
+            type: wait
+            with:
+              duration: 15s
+
+          - name: check_3
+            type: http
+            on-failure:
+              continue: true
+            with:
+              method: GET
+              url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/endpoint/action/{{ steps.execute_action.output.data.data.id }}"
+              headers:
+                Authorization: "ApiKey __KIBANA_API_KEY__"
+                kbn-xsrf: "true"
+                elastic-api-version: "2023-10-31"
+
+          - name: poll_if_pending_3
+            type: if
+            condition: 'steps.check_3.output.data.data.isCompleted: "false"'
+            steps:
+
+              - name: wait_4
+                type: wait
+                with:
+                  duration: 15s
+
+              - name: check_4
+                type: http
+                on-failure:
+                  continue: true
+                with:
+                  method: GET
+                  url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/endpoint/action/{{ steps.execute_action.output.data.data.id }}"
+                  headers:
+                    Authorization: "ApiKey __KIBANA_API_KEY__"
+                    kbn-xsrf: "true"
+                    elastic-api-version: "2023-10-31"
+
+              - name: poll_if_pending_4
+                type: if
+                condition: 'steps.check_4.output.data.data.isCompleted: "false"'
+                steps:
+
+                  - name: wait_5
+                    type: wait
+                    with:
+                      duration: 15s
+
+  # ── Final status check (always runs) ────────────────────────────────────
   - name: get_action_status
     type: http
+    on-failure:
+      continue: true
     with:
       method: GET
       url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/endpoint/action/{{ steps.execute_action.output.data.data.id }}"
