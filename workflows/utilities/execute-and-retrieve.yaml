@@ -41,6 +41,8 @@ steps:
 
   - name: execute_action
     type: http
+    on-failure:
+      continue: true
     with:
       method: POST
       url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/endpoint/action/execute"
