@@ -27,8 +27,9 @@ tags:
   - scheduled
 
 triggers:
-  - type: schedule
-    interval: 2m
+  - type: scheduled
+    with:
+      every: "2m"
 
 consts:
   es_url: "__ES_URL__"
