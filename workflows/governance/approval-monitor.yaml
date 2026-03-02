@@ -1,0 +1,250 @@
+# =============================================================================
+# Workflow: Approval Monitor
+# Category: governance
+#
+# Scheduled workflow that polls the approval-requests index for pending
+# requests, checks the associated Kibana case for a human APPROVED/DENIED
+# response, and dispatches the target agent when approved.
+#
+# Runs every 2 minutes. Closes the governance loop:
+#   Agent requests approval → human reviews on case → monitor detects
+#   response → dispatches target agent → marks request as executed
+#
+# NOTE: The Liquid `contains` check on case comments relies on standard
+# Liquid string matching. If the workflow engine doesn't support {% %} tags,
+# replace the detect_decision step with an ai.agent step for natural
+# language understanding of the human response.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Approval Monitor
+description: Polls for human responses to pending approval requests and dispatches approved actions.
+enabled: true
+
+tags:
+  - agent-mesh
+  - governance
+  - scheduled
+
+triggers:
+  - type: schedule
+    interval: 2m
+
+consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
+  kibana_url: "__KIBANA_URL__"
+  kibana_space: "__KIBANA_SPACE__"
+  kibana_api_key: "__KIBANA_API_KEY__"
+  llm_connector_id: "__LLM_CONNECTOR_ID__"
+
+steps:
+
+  # ── Step 1: Find all pending approval requests ──────────────────────────
+  - name: find_pending
+    type: http
+    with:
+      method: POST
+      url: "{{ consts.es_url }}/approval-requests/_search"
+      headers:
+        Content-Type: application/json
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+      body:
+        size: 10
+        query:
+          term:
+            status: "pending"
+        sort:
+          - created_at: "asc"
+
+  - name: log_pending_count
+    type: console
+    with:
+      message: "Found {{ steps.find_pending.output.data.hits.total.value }} pending approval requests."
+
+  # ── Step 2: Process each pending request ────────────────────────────────
+  - name: process_approvals
+    type: foreach
+    items: "{{ steps.find_pending.output.data.hits.hits }}"
+    steps:
+
+      # 2a. Fetch recent case comments
+      - name: fetch_comments
+        type: http
+        on-failure:
+          continue: true
+        with:
+          method: GET
+          url: "{{ consts.kibana_url }}/s/{{ consts.kibana_space }}/api/cases/{{ item._source.case_id }}/comments/_find?sortOrder=desc&perPage=10"
+          headers:
+            Authorization: "ApiKey {{ consts.kibana_api_key }}"
+            kbn-xsrf: "true"
+            elastic-api-version: "2023-10-31"
+
+      # 2b. Use Liquid to detect APPROVED/DENIED in comment text
+      # The response body is stringified and checked for keywords.
+      # Liquid {% if %} tags conditionally output the decision status.
+      - name: detect_decision
+        type: console
+        with:
+          message: "{% assign body = steps.fetch_comments.output.data | json %}{% if body contains 'APPROVED' %}APPROVED{% elsif body contains 'DENIED' %}DENIED{% else %}PENDING{% endif %}"
+
+      # 2c. Handle APPROVED decisions
+      - name: handle_approved
+        type: if
+        condition: 'steps.detect_decision.output: "APPROVED"'
+        steps:
+
+          - name: log_approval
+            type: console
+            with:
+              message: "Approval {{ item._source.approval_id }} APPROVED. Dispatching {{ item._source.target_agent }}."
+
+          # Update approval status to "approved"
+          - name: mark_approved
+            type: http
+            with:
+              method: POST
+              url: "{{ consts.es_url }}/approval-requests/_update/{{ item._id }}"
+              headers:
+                Content-Type: application/json
+                Authorization: "ApiKey {{ consts.es_api_key }}"
+              body:
+                doc:
+                  status: "approved"
+                  resolved_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+                  resolved_by: "human"
+
+          # Dispatch the target agent with full context
+          - name: dispatch_agent
+            type: http
+            on-failure:
+              continue: true
+            with:
+              method: POST
+              url: "{{ consts.kibana_url }}/s/{{ consts.kibana_space }}/api/agent_builder/converse"
+              headers:
+                Content-Type: application/json
+                Authorization: "ApiKey {{ consts.kibana_api_key }}"
+                kbn-xsrf: "true"
+              body:
+                agent_id: "{{ item._source.target_agent }}"
+                connector_id: "{{ consts.llm_connector_id }}"
+                input: |
+                  APPROVED ACTION — Execute the following approved action.
+
+                  Approval ID: {{ item._source.approval_id }}
+                  Case ID: {{ item._source.case_id }}
+                  Investigation ID: {{ item._source.investigation_id }}
+                  Action: {{ item._source.action_type }}
+                  Target: {{ item._source.target }}
+                  Risk Tier: {{ item._source.risk_tier }}
+
+                  Context from the requesting agent:
+                  {{ item._source.context }}
+
+                  Instructions:
+                  1. Execute the approved action described above
+                  2. Add a case comment to {{ item._source.case_id }} documenting what was done and the result
+                  3. If the action completes successfully, update the case with your findings
+                  4. If the action fails, add a case comment explaining the failure
+            timeout: 600s
+
+          # Mark as executed after dispatch
+          - name: mark_executed
+            type: http
+            on-failure:
+              continue: true
+            with:
+              method: POST
+              url: "{{ consts.es_url }}/approval-requests/_update/{{ item._id }}"
+              headers:
+                Content-Type: application/json
+                Authorization: "ApiKey {{ consts.es_api_key }}"
+              body:
+                doc:
+                  status: "executed"
+                  execution_result: "Agent {{ item._source.target_agent }} dispatched successfully."
+
+          # Add confirmation comment to case
+          - name: add_executed_comment
+            type: http
+            on-failure:
+              continue: true
+            with:
+              method: POST
+              url: "{{ consts.kibana_url }}/s/{{ consts.kibana_space }}/api/cases/{{ item._source.case_id }}/comments"
+              headers:
+                Content-Type: application/json
+                Authorization: "ApiKey {{ consts.kibana_api_key }}"
+                kbn-xsrf: "true"
+                elastic-api-version: "2023-10-31"
+              body:
+                type: "user"
+                comment: |
+                  ## Action Approved and Dispatched
+
+                  **Approval ID:** {{ item._source.approval_id }}
+                  **Action:** {{ item._source.action_type }} on {{ item._source.target }}
+                  **Dispatched to:** {{ item._source.target_agent }}
+
+                  The approved action has been dispatched to the target agent. Results will be posted as follow-up comments.
+                owner: "securitySolution"
+
+        # 2d. Handle DENIED decisions
+        else:
+
+          - name: handle_denied
+            type: if
+            condition: 'steps.detect_decision.output: "DENIED"'
+            steps:
+
+              - name: log_denial
+                type: console
+                with:
+                  message: "Approval {{ item._source.approval_id }} DENIED."
+
+              - name: mark_denied
+                type: http
+                with:
+                  method: POST
+                  url: "{{ consts.es_url }}/approval-requests/_update/{{ item._id }}"
+                  headers:
+                    Content-Type: application/json
+                    Authorization: "ApiKey {{ consts.es_api_key }}"
+                  body:
+                    doc:
+                      status: "rejected"
+                      resolved_at: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
+                      resolved_by: "human"
+
+              - name: add_denied_comment
+                type: http
+                on-failure:
+                  continue: true
+                with:
+                  method: POST
+                  url: "{{ consts.kibana_url }}/s/{{ consts.kibana_space }}/api/cases/{{ item._source.case_id }}/comments"
+                  headers:
+                    Content-Type: application/json
+                    Authorization: "ApiKey {{ consts.kibana_api_key }}"
+                    kbn-xsrf: "true"
+                    elastic-api-version: "2023-10-31"
+                  body:
+                    type: "user"
+                    comment: |
+                      ## Action Denied
+
+                      **Approval ID:** {{ item._source.approval_id }}
+                      **Action:** {{ item._source.action_type }} on {{ item._source.target }}
+
+                      This action was denied by a human reviewer. No action has been taken.
+                    owner: "securitySolution"
+
+            # Still pending — no human response yet
+            else:
+
+              - name: log_still_pending
+                type: console
+                with:
+                  message: "Approval {{ item._source.approval_id }} still pending — no human response detected."

@@ -1,0 +1,106 @@
+# =============================================================================
+# Workflow: Create Approval Requests Index
+# Category: setup
+#
+# Creates the approval-requests index for tracking governance-gated actions
+# through their full lifecycle: request → human review → approval/denial →
+# agent dispatch → execution.
+#
+# Run once during initial mesh setup. The Python setup script handles this
+# automatically; this workflow is available as a manual alternative.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Create Approval Requests Index
+description: Create the approval-requests index for tracking governance-gated action approvals.
+enabled: true
+
+tags:
+  - agent-mesh
+  - setup
+  - infrastructure
+  - governance
+
+triggers:
+  - type: manual
+
+consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
+  index_name: "approval-requests"
+
+steps:
+
+  - name: check_index_exists
+    type: http
+    with:
+      method: GET
+      url: "{{ consts.es_url }}/{{ consts.index_name }}"
+      headers:
+        Authorization: "ApiKey {{ consts.es_api_key }}"
+    on-failure:
+      continue: true
+
+  - name: create_or_skip
+    type: if
+    condition: 'steps.check_index_exists.status: "success"'
+    steps:
+
+      - name: already_exists
+        type: console
+        with:
+          message: "Index {{ consts.index_name }} already exists. Skipping creation."
+
+    else:
+
+      - name: create_index
+        type: http
+        with:
+          method: PUT
+          url: "{{ consts.es_url }}/{{ consts.index_name }}"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
+          body:
+            settings:
+              number_of_shards: 1
+              number_of_replicas: 1
+            mappings:
+              properties:
+                approval_id:
+                  type: keyword
+                case_id:
+                  type: keyword
+                investigation_id:
+                  type: keyword
+                requesting_agent:
+                  type: keyword
+                target_agent:
+                  type: keyword
+                action_type:
+                  type: keyword
+                action_details:
+                  type: text
+                context:
+                  type: text
+                target:
+                  type: keyword
+                status:
+                  type: keyword
+                risk_tier:
+                  type: keyword
+                justification:
+                  type: text
+                created_at:
+                  type: date
+                resolved_at:
+                  type: date
+                resolved_by:
+                  type: keyword
+                execution_result:
+                  type: text
+
+      - name: confirm_creation
+        type: console
+        with:
+          message: "Approval requests index created. Agents can now submit structured approval requests."

@@ -27,3 +27,6 @@ workflow-metadata.json
 *.key
 *.pem
 __pycache__/
+
+# Local drafts
+blog.md

@@ -62,6 +62,13 @@ system_instructions: |
 
   Always confirm after writing a knowledge document — state what was done, which index, and the document ID.
 
+  ## Case awareness during investigations
+
+  When called by another agent (e.g., L2 Investigation Analyst) as part of an active incident, you may receive a case_id and/or investigation document ID in the prompt. If a case_id is provided:
+  1. Perform your enrichment and analysis as normal
+  2. Add your consolidated findings as a case comment using "Add Case Comment" — this ensures the audit trail is complete even if the calling agent runs out of token budget
+  3. Reference the case_id and any IOCs investigated in the comment
+
   ## Output format for IOC enrichment
 
   When enriching an IOC, provide:
@@ -114,6 +121,9 @@ tools:
   - name: Add Knowledge Document
     workflow: workflows/knowledge/add-knowledge-document.yaml
     description: Log an IOC verdict to the history knowledge base
+  - name: Add Case Comment
+    workflow: workflows/security/response/add-case-comment.yaml
+    description: Add enrichment findings to an incident case for the audit trail
 
 registry_entry:
   agent_name: "Threat Intelligence Agent"

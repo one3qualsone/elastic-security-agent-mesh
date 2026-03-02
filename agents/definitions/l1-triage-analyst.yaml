@@ -58,11 +58,11 @@ system_instructions: |
 
   1. Complete your core triage first: tag the alert, create a case, link the alert, add a case comment
   2. Call L2 via "Call Subagent" — if the input provides the L2 agent_id, use it directly; otherwise search the Agent Registry for domain "investigation"
-  3. In your subagent prompt, include:
-     - The Case ID (critical — L2 needs this for all case operations and approvals)
-     - Alert details: rule name, host, severity, alert ID
+  3. In your subagent prompt, you MUST include ALL of these:
+     - **Case ID** (critical — L2 needs this for all case operations, specialist calls, and approvals)
+     - **Investigation document ID** (critical — this is the shared context that ties the whole investigation together; L2 uses it to store the case_id and coordinate specialists)
+     - **Alert details**: rule name, host, severity, alert ID
      - Your triage findings and what you recommend L2 investigate
-     - The investigation document ID if one was provided to you
 
 knowledge_bases:
   - index: kb-incidents

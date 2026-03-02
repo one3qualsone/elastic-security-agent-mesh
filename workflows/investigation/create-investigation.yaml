@@ -40,6 +40,10 @@ inputs:
     type: string
     description: "Initial risk tier: tier_0, tier_1, tier_2"
     default: "tier_0"
+  - name: case_id
+    type: string
+    description: "Kibana case ID associated with this investigation (set by L1 after case creation)"
+    required: false
   - name: tags
     type: array
     description: "Tags for categorising the investigation"
@@ -71,6 +75,7 @@ steps:
         status: "open"
         risk_tier: "{{ inputs.risk_tier }}"
         assigned_agent: "{{ inputs.assigned_agent | default: '' }}"
+        case_id: "{{ inputs.case_id | default: '' }}"
         summary: ""
         semantic_summary: "{{ inputs.title }}"
         evidence: []

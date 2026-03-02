@@ -25,7 +25,7 @@ inputs:
     required: true
   - name: status
     type: string
-    description: "New status: open, investigating, escalated, resolved, closed"
+    description: "New status: open, investigating, escalated, awaiting_approval, awaiting_handover, resolved, closed"
     required: false
   - name: summary
     type: string
@@ -38,6 +38,10 @@ inputs:
   - name: risk_tier
     type: string
     description: "Updated risk tier: tier_0, tier_1, tier_2"
+    required: false
+  - name: case_id
+    type: string
+    description: "Kibana case ID to associate with this investigation"
     required: false
 
 consts:
@@ -71,6 +75,7 @@ steps:
             }
             if (params.assigned_agent != null && params.assigned_agent != '') { ctx._source.assigned_agent = params.assigned_agent; }
             if (params.risk_tier != null && params.risk_tier != '') { ctx._source.risk_tier = params.risk_tier; }
+            if (params.case_id != null && params.case_id != '') { ctx._source.case_id = params.case_id; }
             if (params.status == 'resolved' || params.status == 'closed') { ctx._source.resolved_at = params.now; }
           params:
             now: "{{ 'now' | date: '%Y-%m-%dT%H:%M:%SZ' }}"
@@ -78,6 +83,7 @@ steps:
             summary: "{{ inputs.summary | default: '' }}"
             assigned_agent: "{{ inputs.assigned_agent | default: '' }}"
             risk_tier: "{{ inputs.risk_tier | default: '' }}"
+            case_id: "{{ inputs.case_id | default: '' }}"
 
   - name: confirm
     type: console

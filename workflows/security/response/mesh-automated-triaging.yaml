@@ -39,19 +39,28 @@ consts:
 
 steps:
 
+  # Deterministic ID prevents duplicate investigations if the same alert re-triggers
+  - name: investigation_doc_id
+    type: console
+    with:
+      message: "inv-{{ event.alerts[0]._id }}"
+
   - name: create_investigation
     type: http
+    on-failure:
+      continue: true
     with:
-      method: POST
-      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_doc"
+      method: PUT
+      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_create/{{ steps.investigation_doc_id.output }}"
       headers:
         Content-Type: application/json
         Authorization: "ApiKey {{ consts.es_api_key }}"
       body:
-        investigation_id: "inv-{{ event.alerts[0]._id }}"
+        investigation_id: "{{ steps.investigation_doc_id.output }}"
         title: "Alert Triage: {{ event.alerts[0].kibana.alert.rule.name }}"
         trigger_type: "alert"
         trigger_ref: "{{ event.alerts[0]._id }}"
+        case_id: ""
         status: "open"
         risk_tier: "tier_0"
         assigned_agent: ""
@@ -95,7 +104,7 @@ steps:
       continue: true
     with:
       method: POST
-      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output.data._id }}"
+      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.investigation_doc_id.output }}"
       headers:
         Content-Type: application/json
         Authorization: "ApiKey {{ consts.es_api_key }}"
@@ -120,7 +129,7 @@ steps:
         agent_id: "{{ steps.find_analyst_agent.output.data.hits.hits[0]._source.agent_id }}"
         connector_id: "__LLM_CONNECTOR_ID__"
         input: |
-          Triage this security alert. Investigation document ID: {{ steps.create_investigation.output.data._id }}
+          Triage this security alert. Investigation document ID: {{ steps.investigation_doc_id.output }}
 
           IMPORTANT: Do NOT search for this alert using Security Alerts — all context is provided below.
 
@@ -136,10 +145,10 @@ steps:
           Instructions:
           1. Analyse the alert context above — determine true positive or false positive
           2. Search for similar past incidents and applicable playbooks using Semantic Knowledge Search
-          3. Add your findings as evidence to investigation {{ steps.create_investigation.output.data._id }}
+          3. Add your findings as evidence to investigation {{ steps.investigation_doc_id.output }}
           4. If true positive: tag the alert, create a case, link the alert to it, and add a case comment with your triage summary
           5. If false positive: tag the alert, close it, and document why
-          6. If this is a true positive requiring deeper investigation, escalate to the L2 Investigation Analyst via Call Subagent — pass the case ID, alert details, and your analysis so L2 can continue on the same case
+          6. If this is a true positive requiring deeper investigation, escalate to the L2 Investigation Analyst via Call Subagent — pass the case ID, investigation document ID ({{ steps.investigation_doc_id.output }}), alert details, and your analysis so L2 can continue on the same case
     timeout: 600s
 
   - name: log_analyst_response
@@ -155,7 +164,7 @@ steps:
       continue: true
     with:
       method: POST
-      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.create_investigation.output.data._id }}"
+      url: "{{ consts.es_url }}/{{ consts.investigation_index }}/_update/{{ steps.investigation_doc_id.output }}"
       headers:
         Content-Type: application/json
         Authorization: "ApiKey {{ consts.es_api_key }}"

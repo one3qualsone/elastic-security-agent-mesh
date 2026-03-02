@@ -81,6 +81,8 @@ steps:
                   type: keyword
                 trigger_ref:
                   type: keyword
+                case_id:
+                  type: keyword
                 status:
                   type: keyword
                 risk_tier:
