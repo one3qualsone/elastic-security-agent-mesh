@@ -44,6 +44,8 @@ steps:
   # ── Step 1: Find pending dispatch requests ──────────────────────────────
   - name: find_pending
     type: http
+    on-failure:
+      continue: true
     with:
       method: POST
       url: "{{ consts.es_url }}/dispatch-requests/_search"

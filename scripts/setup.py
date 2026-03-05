@@ -290,6 +290,54 @@ def action_policies_mapping():
     }
 
 
+def dispatch_requests_mapping():
+    return {
+        "settings": {"number_of_shards": 1, "number_of_replicas": 1},
+        "mappings": {
+            "properties": {
+                "dispatch_id": {"type": "keyword"},
+                "target_agent": {"type": "keyword"},
+                "requesting_agent": {"type": "keyword"},
+                "case_id": {"type": "keyword"},
+                "investigation_id": {"type": "keyword"},
+                "context": {"type": "text"},
+                "priority": {"type": "keyword"},
+                "status": {"type": "keyword"},
+                "created_at": {"type": "date"},
+                "dispatched_at": {"type": "date"},
+                "completed_at": {"type": "date"},
+                "result_summary": {"type": "text"},
+            }
+        },
+    }
+
+
+def approval_requests_mapping():
+    return {
+        "settings": {"number_of_shards": 1, "number_of_replicas": 1},
+        "mappings": {
+            "properties": {
+                "approval_id": {"type": "keyword"},
+                "case_id": {"type": "keyword"},
+                "investigation_id": {"type": "keyword"},
+                "requesting_agent": {"type": "keyword"},
+                "target_agent": {"type": "keyword"},
+                "action_type": {"type": "keyword"},
+                "action_details": {"type": "text"},
+                "context": {"type": "text"},
+                "target": {"type": "keyword"},
+                "status": {"type": "keyword"},
+                "risk_tier": {"type": "keyword"},
+                "justification": {"type": "text"},
+                "created_at": {"type": "date"},
+                "resolved_at": {"type": "date"},
+                "resolved_by": {"type": "keyword"},
+                "execution_result": {"type": "text"},
+            }
+        },
+    }
+
+
 def create_all_indices():
     print("=== Creating Indices ===\n")
 
@@ -301,6 +349,12 @@ def create_all_indices():
 
     print("\nAction policies:")
     create_index("action-policies", action_policies_mapping())
+
+    print("\nDispatch requests:")
+    create_index("dispatch-requests", dispatch_requests_mapping())
+
+    print("\nApproval requests:")
+    create_index("approval-requests", approval_requests_mapping())
 
     print("\nKnowledge bases:")
     kb_mapping = knowledge_base_mapping()
