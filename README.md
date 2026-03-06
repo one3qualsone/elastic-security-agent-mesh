@@ -219,6 +219,7 @@ python scripts/setup.py --indices-only   # Only create indices (idempotent)
 python scripts/setup.py --workflows-only # Only import workflows
 python scripts/setup.py --tools-only     # Only create tools (requires workflows)
 python scripts/setup.py --seed-policies  # Only seed governance policies
+python scripts/setup.py --seed-knowledge # Seed operational knowledge (FP patterns, playbooks)
 ```
 
 #### Re-deployment Notes

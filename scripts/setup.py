@@ -512,6 +512,129 @@ def seed_action_policies():
     print()
 
 
+def seed_operational_knowledge():
+    """Seed critical operational knowledge that agents need from day one.
+
+    These documents teach agents to recognise known false positive patterns,
+    operational artifacts, and baseline behaviours that would otherwise trigger
+    alert spirals or misclassification.
+    """
+    print("=== Seeding Operational Knowledge ===\n")
+
+    es_url = os.environ.get("ELASTIC_CLOUD_URL", "").strip()
+    api_key = os.environ.get("ES_API_KEY", "").strip()
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"ApiKey {api_key}",
+    }
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    documents = [
+        {
+            "index": "kb-incidents",
+            "id": "fp-response-console-echo",
+            "body": {
+                "title": "False Positive: Elastic Defend Response Console Commands Trigger Suspicious Echo Execution Alert",
+                "content": (
+                    "Commands executed via Elastic Defend response console appear as child "
+                    "processes of elastic-endpoint (/opt/Elastic/Endpoint/elastic-endpoint). "
+                    "These commands trigger behavior-based detection rules such as 'Suspicious "
+                    "Echo Execution' because they run shell commands as root with elastic-endpoint "
+                    "as the parent process. This is expected behavior when agents or analysts use "
+                    "the response console for forensic investigation. Examples include: "
+                    "'cat /root/.ssh/authorized_keys', 'ls -la /etc/cron*', 'w', 'last -20', "
+                    "'ps aux | grep elastic-endpoint', 'grep -i fail /var/log/auth.log'. "
+                    "Always check if the parent process is elastic-endpoint before classifying "
+                    "as a true positive. If it is, this is a false positive caused by legitimate "
+                    "response console activity."
+                ),
+                "semantic_summary": (
+                    "False positive pattern: Elastic Defend response console commands executed "
+                    "via elastic-endpoint parent process trigger Suspicious Echo Execution alerts. "
+                    "Commands like checking SSH authorized_keys, enumerating cron jobs, reviewing "
+                    "auth logs, and listing processes are legitimate forensic investigation actions "
+                    "run through the response console. When parent process is elastic-endpoint at "
+                    "/opt/Elastic/Endpoint/elastic-endpoint, classify as false positive. This "
+                    "pattern causes alert spirals when the agent mesh investigates endpoints and "
+                    "its own commands trigger new alerts."
+                ),
+                "category": "false-positive-pattern",
+                "source": "operational-learning",
+                "tags": [
+                    "false-positive",
+                    "response-console",
+                    "elastic-endpoint",
+                    "suspicious-echo-execution",
+                    "alert-spiral",
+                ],
+                "created_at": now,
+                "updated_at": now,
+                "metadata": {
+                    "resolution": "Classify as False Positive",
+                    "root_cause": "Response console forensic commands trigger behavior-based detection rules",
+                    "detection_rule": "Malicious Behavior Prevention Alert: Suspicious Echo Execution",
+                    "parent_process": "/opt/Elastic/Endpoint/elastic-endpoint",
+                    "recommendation": (
+                        "Create a detection rule exception for commands with elastic-endpoint "
+                        "as parent process, or use the Detection Engineering agent to build "
+                        "a suppression rule for response console activity."
+                    ),
+                },
+            },
+        },
+        {
+            "index": "kb-playbooks",
+            "id": "playbook-response-console-fp",
+            "body": {
+                "title": "Playbook: Triage Alerts with elastic-endpoint Parent Process",
+                "content": (
+                    "When triaging any alert where the parent process is elastic-endpoint "
+                    "(/opt/Elastic/Endpoint/elastic-endpoint), follow these steps: "
+                    "1. Check if the parent process path is /opt/Elastic/Endpoint/elastic-endpoint. "
+                    "2. If yes, the command was likely run via Elastic Defend response console. "
+                    "3. Verify the command matches common investigation patterns (checking SSH keys, "
+                    "cron jobs, auth logs, process lists, network connections). "
+                    "4. Check response console audit logs for matching timestamps if available. "
+                    "5. If commands are legitimate response console activity, classify as False Positive. "
+                    "6. Tag the alert as False Positive and close it. "
+                    "7. Consider using the Detection Engineering agent to create a suppression rule "
+                    "for response console activity to prevent future false positives."
+                ),
+                "semantic_summary": (
+                    "Triage playbook for alerts triggered by Elastic Defend response console commands. "
+                    "When the parent process is elastic-endpoint, commands were run via the response "
+                    "console for legitimate investigation. Check parent process path, verify command "
+                    "matches forensic patterns, classify as false positive. Applies to Suspicious Echo "
+                    "Execution, suspicious process execution, and similar behavior-based alerts where "
+                    "elastic-endpoint is the parent. Prevents alert spirals from agent mesh investigation."
+                ),
+                "category": "triage-playbook",
+                "source": "operational-learning",
+                "tags": [
+                    "triage",
+                    "false-positive",
+                    "response-console",
+                    "elastic-endpoint",
+                    "playbook",
+                ],
+                "created_at": now,
+                "updated_at": now,
+            },
+        },
+    ]
+
+    for doc in documents:
+        url = f"{es_url}/{doc['index']}/_doc/{doc['id']}"
+        resp = requests.put(url, headers=headers, json=doc["body"])
+        if resp.status_code in (200, 201):
+            result = resp.json().get("result", "unknown")
+            print(f"  [OK] {doc['index']}/{doc['id']} ({result})")
+        else:
+            print(f"  [FAILED] {doc['index']}/{doc['id']}: {resp.status_code} — {resp.text[:200]}")
+
+    print()
+
+
 def build_replacements():
     """Build the token → value map for injecting secrets into workflow YAML."""
     return {
@@ -1262,6 +1385,8 @@ def main():
                         help="Only create tools (requires workflows already imported)")
     parser.add_argument("--agents-only", action="store_true",
                         help="Only create agents (requires tools already created)")
+    parser.add_argument("--seed-knowledge", action="store_true",
+                        help="Only seed operational knowledge (false positive patterns, playbooks)")
     parser.add_argument("--delete-workflows", action="store_true",
                         help="Delete all workflows from Kibana before importing")
     parser.add_argument("--delete-all", action="store_true",
@@ -1288,6 +1413,7 @@ def main():
         time.sleep(15)
         create_all_indices()
         seed_action_policies()
+        seed_operational_knowledge()
         wf_map = import_workflows()
         tool_map = create_tools(wf_map)
         agent_map = create_agents(tool_map)
@@ -1317,6 +1443,10 @@ def main():
         seed_action_policies()
         return
 
+    if args.seed_knowledge:
+        seed_operational_knowledge()
+        return
+
     if args.tools_only:
         wf_map = fetch_existing_workflow_ids()
         create_tools(wf_map)
@@ -1330,6 +1460,7 @@ def main():
 
     create_all_indices()
     seed_action_policies()
+    seed_operational_knowledge()
     wf_map = import_workflows()
     tool_map = create_tools(wf_map)
     agent_map = create_agents(tool_map)
