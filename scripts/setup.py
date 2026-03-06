@@ -532,31 +532,52 @@ def seed_operational_knowledge():
     documents = [
         {
             "index": "kb-incidents",
-            "id": "fp-response-console-echo",
+            "id": "fp-response-console-alerts",
             "body": {
-                "title": "False Positive: Elastic Defend Response Console Commands Trigger Suspicious Echo Execution Alert",
+                "title": "False Positive Pattern: Elastic Defend Response Console Activity Triggers Behavior-Based Alerts",
                 "content": (
                     "Commands executed via Elastic Defend response console appear as child "
-                    "processes of elastic-endpoint (/opt/Elastic/Endpoint/elastic-endpoint). "
-                    "These commands trigger behavior-based detection rules such as 'Suspicious "
-                    "Echo Execution' because they run shell commands as root with elastic-endpoint "
-                    "as the parent process. This is expected behavior when agents or analysts use "
-                    "the response console for forensic investigation. Examples include: "
-                    "'cat /root/.ssh/authorized_keys', 'ls -la /etc/cron*', 'w', 'last -20', "
-                    "'ps aux | grep elastic-endpoint', 'grep -i fail /var/log/auth.log'. "
-                    "Always check if the parent process is elastic-endpoint before classifying "
-                    "as a true positive. If it is, this is a false positive caused by legitimate "
-                    "response console activity."
+                    "processes of elastic-endpoint with the full parent process path "
+                    "/opt/Elastic/Endpoint/elastic-endpoint. These commands can trigger ANY "
+                    "behavior-based detection rule — including but not limited to Suspicious "
+                    "Echo Execution, Suspicious Process Execution, Suspicious Shell Activity, "
+                    "and similar behavioral detections. This happens because response console "
+                    "commands run shell commands as root, which matches patterns that detection "
+                    "rules flag as malicious. This is expected behavior when the agent mesh or "
+                    "human analysts use the response console for forensic investigation.\n\n"
+                    "Common response console commands that trigger alerts:\n"
+                    "- cat /root/.ssh/authorized_keys\n"
+                    "- ls -la /etc/cron* /var/spool/cron/crontabs/\n"
+                    "- w (check active sessions)\n"
+                    "- last -20 (recent logins)\n"
+                    "- ps aux | grep [process]\n"
+                    "- grep -i fail /var/log/auth.log\n"
+                    "- find / -name [file] -mtime -7\n"
+                    "- netstat -antp\n\n"
+                    "IMPORTANT: Do not blindly dismiss all alerts with elastic-endpoint as "
+                    "parent. Verify BOTH conditions: (1) the full parent process path is "
+                    "/opt/Elastic/Endpoint/elastic-endpoint (not just the name), AND (2) "
+                    "the child command matches a recognisable forensic investigation pattern. "
+                    "An attacker with root access could theoretically spoof the process name, "
+                    "but the full path at the protected Elastic install location is much harder "
+                    "to impersonate. When in doubt, check response console audit logs for "
+                    "matching timestamps."
                 ),
                 "semantic_summary": (
-                    "False positive pattern: Elastic Defend response console commands executed "
-                    "via elastic-endpoint parent process trigger Suspicious Echo Execution alerts. "
-                    "Commands like checking SSH authorized_keys, enumerating cron jobs, reviewing "
-                    "auth logs, and listing processes are legitimate forensic investigation actions "
-                    "run through the response console. When parent process is elastic-endpoint at "
-                    "/opt/Elastic/Endpoint/elastic-endpoint, classify as false positive. This "
-                    "pattern causes alert spirals when the agent mesh investigates endpoints and "
-                    "its own commands trigger new alerts."
+                    "False positive pattern: Elastic Defend response console commands trigger "
+                    "behavior-based security alerts. Any command run through the response console "
+                    "(execute, execute-and-retrieve) appears as a child process of "
+                    "elastic-endpoint at /opt/Elastic/Endpoint/elastic-endpoint. This triggers "
+                    "detection rules including Suspicious Echo Execution, Suspicious Process "
+                    "Execution, Suspicious Shell Activity, shell command alerts, and any "
+                    "behavioral prevention rule that flags root shell activity. These are "
+                    "legitimate forensic investigation actions — not malicious. Classify as "
+                    "false positive when the parent process path is "
+                    "/opt/Elastic/Endpoint/elastic-endpoint AND the command matches common "
+                    "investigation patterns. This pattern causes alert spirals when the agent "
+                    "mesh investigates endpoints and its own forensic commands trigger new "
+                    "alerts. Applies to all behavior-based and malicious behavior prevention "
+                    "alerts where elastic-endpoint is the parent process."
                 ),
                 "category": "false-positive-pattern",
                 "source": "operational-learning",
@@ -564,20 +585,34 @@ def seed_operational_knowledge():
                     "false-positive",
                     "response-console",
                     "elastic-endpoint",
-                    "suspicious-echo-execution",
+                    "behavior-detection",
                     "alert-spiral",
+                    "malicious-behavior-prevention",
                 ],
                 "created_at": now,
                 "updated_at": now,
                 "metadata": {
-                    "resolution": "Classify as False Positive",
-                    "root_cause": "Response console forensic commands trigger behavior-based detection rules",
-                    "detection_rule": "Malicious Behavior Prevention Alert: Suspicious Echo Execution",
-                    "parent_process": "/opt/Elastic/Endpoint/elastic-endpoint",
+                    "resolution": "Classify as False Positive after verifying both conditions",
+                    "root_cause": (
+                        "Response console forensic commands trigger behavior-based detection "
+                        "rules because they run as root with shell execution patterns"
+                    ),
+                    "affected_rules": [
+                        "Suspicious Echo Execution",
+                        "Suspicious Process Execution",
+                        "Suspicious Shell Activity",
+                        "Any Malicious Behavior Prevention rule triggered by shell commands",
+                    ],
+                    "parent_process_path": "/opt/Elastic/Endpoint/elastic-endpoint",
+                    "verification_steps": [
+                        "Confirm full parent process path (not just name)",
+                        "Verify command matches forensic investigation pattern",
+                        "Check response console audit logs for matching timestamps if uncertain",
+                    ],
                     "recommendation": (
-                        "Create a detection rule exception for commands with elastic-endpoint "
-                        "as parent process, or use the Detection Engineering agent to build "
-                        "a suppression rule for response console activity."
+                        "Create detection rule exceptions for commands with elastic-endpoint "
+                        "parent process at the protected install path, or dispatch the Detection "
+                        "Engineering agent to build a suppression rule."
                     ),
                 },
             },
@@ -586,27 +621,40 @@ def seed_operational_knowledge():
             "index": "kb-playbooks",
             "id": "playbook-response-console-fp",
             "body": {
-                "title": "Playbook: Triage Alerts with elastic-endpoint Parent Process",
+                "title": "Playbook: Triage Any Alert Where Parent Process Is elastic-endpoint",
                 "content": (
-                    "When triaging any alert where the parent process is elastic-endpoint "
-                    "(/opt/Elastic/Endpoint/elastic-endpoint), follow these steps: "
-                    "1. Check if the parent process path is /opt/Elastic/Endpoint/elastic-endpoint. "
-                    "2. If yes, the command was likely run via Elastic Defend response console. "
-                    "3. Verify the command matches common investigation patterns (checking SSH keys, "
-                    "cron jobs, auth logs, process lists, network connections). "
-                    "4. Check response console audit logs for matching timestamps if available. "
-                    "5. If commands are legitimate response console activity, classify as False Positive. "
-                    "6. Tag the alert as False Positive and close it. "
-                    "7. Consider using the Detection Engineering agent to create a suppression rule "
-                    "for response console activity to prevent future false positives."
+                    "This playbook applies to ANY security alert — not just a specific rule — "
+                    "where the parent process is elastic-endpoint. Response console commands "
+                    "trigger various behavior-based detection rules.\n\n"
+                    "Steps:\n"
+                    "1. Check if the parent process path is /opt/Elastic/Endpoint/elastic-endpoint "
+                    "(the FULL path matters, not just the process name).\n"
+                    "2. If the full path matches, the command was run via Elastic Defend response "
+                    "console by the agent mesh or a human analyst.\n"
+                    "3. Verify the child command matches a recognisable forensic pattern: checking "
+                    "SSH keys, cron jobs, auth logs, process lists, network connections, file "
+                    "searches, user sessions, or system enumeration.\n"
+                    "4. If BOTH conditions are met (correct parent path + forensic command pattern), "
+                    "classify as False Positive.\n"
+                    "5. Tag the alert as False Positive and close it.\n"
+                    "6. Do NOT escalate to L2 or dispatch specialists for confirmed response "
+                    "console false positives.\n"
+                    "7. If this alert type recurs frequently, consider dispatching the Detection "
+                    "Engineering agent to create a rule exception or suppression.\n\n"
+                    "CAUTION: Do not dismiss alerts solely based on the process name "
+                    "'elastic-endpoint'. Always verify the FULL parent process path. An attacker "
+                    "with sufficient access could create a process with a similar name at a "
+                    "different path."
                 ),
                 "semantic_summary": (
-                    "Triage playbook for alerts triggered by Elastic Defend response console commands. "
-                    "When the parent process is elastic-endpoint, commands were run via the response "
-                    "console for legitimate investigation. Check parent process path, verify command "
-                    "matches forensic patterns, classify as false positive. Applies to Suspicious Echo "
-                    "Execution, suspicious process execution, and similar behavior-based alerts where "
-                    "elastic-endpoint is the parent. Prevents alert spirals from agent mesh investigation."
+                    "Triage playbook for any security alert triggered by Elastic Defend response "
+                    "console commands. Applies to all alert types — Suspicious Echo Execution, "
+                    "Suspicious Process Execution, shell activity alerts, malicious behavior "
+                    "prevention alerts, and any future behavioral rule. When parent process path "
+                    "is /opt/Elastic/Endpoint/elastic-endpoint and the command matches a forensic "
+                    "investigation pattern, classify as false positive. Do not escalate response "
+                    "console false positives. Prevents alert spirals from agent mesh investigation "
+                    "activity and manual analyst response console use."
                 ),
                 "category": "triage-playbook",
                 "source": "operational-learning",
@@ -616,6 +664,7 @@ def seed_operational_knowledge():
                     "response-console",
                     "elastic-endpoint",
                     "playbook",
+                    "behavior-detection",
                 ],
                 "created_at": now,
                 "updated_at": now,
