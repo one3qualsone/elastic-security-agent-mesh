@@ -25,6 +25,8 @@ This project implements a **mesh of specialised security AI agents** on the Elas
 
 ### Key Capabilities
 
+- **Async Dispatch** — agents don't call agents synchronously; they write dispatch requests to a shared index, and a scheduled monitor invokes each target agent in its own independent session with a fresh timeout and token budget
+- **Human-in-the-Loop Approvals** — high-risk actions (host isolation, rule changes) require human approval via case comments; a scheduled approval monitor detects responses and dispatches execution
 - **Investigation Context** — shared state between agents with evidence chains, action logs, and governance approvals
 - **Governance Framework** — risk-tiered controls (Tier 0: autonomous, Tier 1: guarded, Tier 2: human-approved) for every action type
 - **Feedback Loops** — scheduled workflows that aggregate detection quality, flag noisy rules, and capture incident resolutions for continuous improvement
@@ -130,7 +132,7 @@ python scripts/setup.py
 
 #### What Phase 1 creates
 
-1. Elasticsearch indices: `agent-registry`, `investigation-contexts`, `action-policies`, all `kb-*` knowledge bases
+1. Elasticsearch indices: `agent-registry`, `investigation-contexts`, `action-policies`, `dispatch-requests`, `approval-requests`, all `kb-*` knowledge bases
 2. Default governance policies (Tier 0/1/2)
 3. All workflow YAML files imported into Kibana
 4. All workflow-based tools in Agent Builder
