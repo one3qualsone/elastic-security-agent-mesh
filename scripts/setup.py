@@ -1030,7 +1030,7 @@ def create_tools(workflow_name_to_id):
                 "description": tool_def.get("description", f"Search {index_name}"),
                 "tags": ["security-mesh"],
                 "configuration": {
-                    "index_pattern": index_name,
+                    "pattern": index_name,
                     "max_rows": 10,
                 },
             }
@@ -1202,6 +1202,28 @@ def create_agents(tool_name_to_id):
     headers = kibana_headers()
     agent_defs = load_agent_definitions()
 
+    all_builtin_ids = set()
+    for agent_def in agent_defs:
+        for tool in agent_def.get("tools", []):
+            if tool.get("type") == "builtin" and tool.get("tool_id"):
+                all_builtin_ids.add(tool["tool_id"])
+
+    validated_builtins = set()
+    if all_builtin_ids:
+        print(f"  Validating {len(all_builtin_ids)} builtin tool IDs...\n")
+        for bid in sorted(all_builtin_ids):
+            check = requests.get(
+                f"{base_url}/api/agent_builder/tools/{bid}",
+                headers=headers,
+                timeout=10,
+            )
+            if check.ok:
+                validated_builtins.add(bid)
+            else:
+                print(f"    [unavailable] {bid} — not in this space/deployment, will skip")
+        if validated_builtins:
+            print(f"\n  {len(validated_builtins)}/{len(all_builtin_ids)} builtin tools available\n")
+
     agent_name_to_id = {}
     created = 0
     updated = 0
@@ -1214,14 +1236,18 @@ def create_agents(tool_name_to_id):
 
         tool_ids = []
         builtin_tools = []
+        skipped_builtins = []
         skipped_tools = []
         fallback_tools = []
         for tool in agent_def.get("tools", []):
             if tool.get("type") == "builtin":
                 builtin_id = tool.get("tool_id", "")
                 if builtin_id:
-                    tool_ids.append(builtin_id)
-                    builtin_tools.append(f"{tool['name']} → {builtin_id}")
+                    if builtin_id in validated_builtins:
+                        tool_ids.append(builtin_id)
+                        builtin_tools.append(f"{tool['name']} → {builtin_id}")
+                    else:
+                        skipped_builtins.append(f"{tool['name']} → {builtin_id}")
                 continue
 
             tid = tool_name_to_id.get(tool["name"])
@@ -1244,6 +1270,10 @@ def create_agents(tool_name_to_id):
             print(f"    [builtin] {agent_name}: {len(builtin_tools)} platform tool(s):")
             for bt in builtin_tools:
                 print(f"              - {bt}")
+        if skipped_builtins:
+            print(f"    [skip] {agent_name}: {len(skipped_builtins)} builtin tool(s) unavailable:")
+            for sb in skipped_builtins:
+                print(f"           - {sb}")
         if fallback_tools:
             print(f"    [info] {agent_name}: {len(fallback_tools)} tool(s) resolved via fallback:")
             for ft in fallback_tools:
