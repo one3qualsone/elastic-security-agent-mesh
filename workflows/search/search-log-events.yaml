@@ -1,0 +1,225 @@
+# =============================================================================
+# Workflow: Search Log Events
+# Category: search
+#
+# Agnostic log event search — queries any data stream or index by a field
+# value and returns matching documents. Designed for agents that need to
+# investigate raw log data (auth events, application logs, network logs)
+# rather than security alerts.
+#
+# Supports three search modes via the match_type input:
+#   - "term"    (default) — exact keyword match, best for device IDs, IPs,
+#                           usernames, status codes
+#   - "match"   — full-text match with analysis, best for free-text fields
+#   - "wildcard"— wildcard pattern match, best for partial values
+#
+# Returns up to `max_results` documents sorted by @timestamp descending.
+#
+# Author: Security Agent Mesh
+# =============================================================================
+name: Search Log Events
+description: Search any log index by field value — returns matching documents sorted by timestamp.
+
+tags:
+  - agent-mesh
+  - search
+  - investigation
+
+inputs:
+  - name: index_name
+    type: string
+    description: >
+      Index or data stream to search (e.g., logs-auth-lottery,
+      logs-aws.cloudwatch-default, filebeat-*).
+    required: true
+  - name: search_field
+    type: string
+    description: >
+      The field to search on (e.g., device.id, source.ip, user.name,
+      event.outcome). Use dot notation for nested fields.
+    required: true
+  - name: search_value
+    type: string
+    description: The value to search for in the specified field.
+    required: true
+  - name: match_type
+    type: string
+    description: >
+      Search mode: "term" for exact match (default), "match" for
+      full-text, "wildcard" for pattern matching.
+    required: false
+  - name: time_range
+    type: string
+    description: >
+      Optional time range filter as an Elasticsearch date math expression
+      (e.g., "now-24h", "now-7d", "now-1h"). Only returns events after
+      this time. Omit for no time filter.
+    required: false
+  - name: additional_filter_field
+    type: string
+    description: >
+      Optional second field to filter on (e.g., event.outcome to filter
+      only failures). Used with additional_filter_value.
+    required: false
+  - name: additional_filter_value
+    type: string
+    description: Value for the additional filter field.
+    required: false
+  - name: max_results
+    type: string
+    description: Maximum number of results to return (default 20).
+    required: false
+
+consts:
+  es_url: "__ES_URL__"
+  es_api_key: "__ES_API_KEY__"
+
+triggers:
+  - type: manual
+
+steps:
+
+  - name: resolve_max
+    type: console
+    with:
+      message: "{{ inputs.max_results | default: '20' }}"
+
+  - name: resolve_match_type
+    type: console
+    with:
+      message: "{{ inputs.match_type | default: 'term' }}"
+
+  # ── Branch: time range + additional filter ────────────────────────────
+  - name: check_filters
+    type: if
+    condition: inputs.time_range AND inputs.additional_filter_field
+    steps:
+
+      - name: search_filtered_timed
+        type: http
+        on-failure:
+          continue: true
+        with:
+          method: POST
+          url: "{{ consts.es_url }}/{{ inputs.index_name }}/_search"
+          headers:
+            Content-Type: application/json
+            Authorization: "ApiKey {{ consts.es_api_key }}"
+          body:
+            size: "{{ steps.resolve_max.output }}"
+            sort:
+              - "@timestamp": "desc"
+            query:
+              bool:
+                must:
+                  - "{{ steps.resolve_match_type.output }}":
+                      "{{ inputs.search_field }}": "{{ inputs.search_value }}"
+                  - term:
+                      "{{ inputs.additional_filter_field }}": "{{ inputs.additional_filter_value }}"
+                filter:
+                  - range:
+                      "@timestamp":
+                        gte: "{{ inputs.time_range }}"
+
+      - name: output_filtered_timed
+        type: console
+        with:
+          message: "{{ steps.check_filters.steps.search_filtered_timed.output.data.hits }}"
+
+    else:
+
+      # ── Branch: time range only ───────────────────────────────────────
+      - name: check_time_only
+        type: if
+        condition: inputs.time_range
+        steps:
+
+          - name: search_timed
+            type: http
+            on-failure:
+              continue: true
+            with:
+              method: POST
+              url: "{{ consts.es_url }}/{{ inputs.index_name }}/_search"
+              headers:
+                Content-Type: application/json
+                Authorization: "ApiKey {{ consts.es_api_key }}"
+              body:
+                size: "{{ steps.resolve_max.output }}"
+                sort:
+                  - "@timestamp": "desc"
+                query:
+                  bool:
+                    must:
+                      - "{{ steps.resolve_match_type.output }}":
+                          "{{ inputs.search_field }}": "{{ inputs.search_value }}"
+                    filter:
+                      - range:
+                          "@timestamp":
+                            gte: "{{ inputs.time_range }}"
+
+          - name: output_timed
+            type: console
+            with:
+              message: "{{ steps.check_filters.steps.check_time_only.steps.search_timed.output.data.hits }}"
+
+        else:
+
+          # ── Branch: additional filter only ──────────────────────────────
+          - name: check_additional_only
+            type: if
+            condition: inputs.additional_filter_field
+            steps:
+
+              - name: search_additional
+                type: http
+                on-failure:
+                  continue: true
+                with:
+                  method: POST
+                  url: "{{ consts.es_url }}/{{ inputs.index_name }}/_search"
+                  headers:
+                    Content-Type: application/json
+                    Authorization: "ApiKey {{ consts.es_api_key }}"
+                  body:
+                    size: "{{ steps.resolve_max.output }}"
+                    sort:
+                      - "@timestamp": "desc"
+                    query:
+                      bool:
+                        must:
+                          - "{{ steps.resolve_match_type.output }}":
+                              "{{ inputs.search_field }}": "{{ inputs.search_value }}"
+                          - term:
+                              "{{ inputs.additional_filter_field }}": "{{ inputs.additional_filter_value }}"
+
+              - name: output_additional
+                type: console
+                with:
+                  message: "{{ steps.check_filters.steps.check_time_only.steps.check_additional_only.steps.search_additional.output.data.hits }}"
+
+            # ── Branch: no filters (simplest case) ──────────────────────────
+            else:
+
+              - name: search_simple
+                type: http
+                on-failure:
+                  continue: true
+                with:
+                  method: POST
+                  url: "{{ consts.es_url }}/{{ inputs.index_name }}/_search"
+                  headers:
+                    Content-Type: application/json
+                    Authorization: "ApiKey {{ consts.es_api_key }}"
+                  body:
+                    size: "{{ steps.resolve_max.output }}"
+                    sort:
+                      - "@timestamp": "desc"
+                    query:
+                      "{{ steps.resolve_match_type.output }}":
+                        "{{ inputs.search_field }}": "{{ inputs.search_value }}"
+
+              - name: output_simple
+                type: console
+                with:
+                  message: "{{ steps.check_filters.steps.check_time_only.steps.check_additional_only.steps.search_simple.output.data.hits }}"
