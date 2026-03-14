@@ -18,8 +18,8 @@ Usage:
     python scripts/setup.py --seed-policies    # Only seed action policies
     python scripts/setup.py --tools-only       # Only create tools (requires workflows already imported)
     python scripts/setup.py --agents-only      # Only create agents (requires tools already created)
-    python scripts/setup.py --delete-workflows # (see note: manual deletion required)
-    python scripts/setup.py --delete-all       # Delete agents + tools, then full re-deploy (workflows: manual)
+    python scripts/setup.py --delete-workflows # Delete mesh workflows from Kibana
+    python scripts/setup.py --delete-all       # Delete agents, tools, and workflows, then full re-deploy
     python scripts/setup.py --validate         # Validate env vars without deploying
 
 Workflow placeholder tokens (replaced at import time with env var values):
@@ -1469,9 +1469,9 @@ def main():
     parser.add_argument("--seed-knowledge", action="store_true",
                         help="Only seed operational knowledge (false positive patterns, playbooks)")
     parser.add_argument("--delete-workflows", action="store_true",
-                        help="Delete all workflows from Kibana before importing")
+                        help="Delete mesh-deployed workflows from Kibana (matched by name)")
     parser.add_argument("--delete-all", action="store_true",
-                        help="Delete all mesh agents, tools, and workflows, then re-deploy")
+                        help="Delete all mesh agents, tools, and workflows, then full re-deploy")
     args = parser.parse_args()
 
     print()
@@ -1489,8 +1489,7 @@ def main():
     if args.delete_all:
         delete_agents()
         delete_tools()
-        print("\n  NOTE: Workflows must be deleted manually in Kibana before re-deploying.")
-        print("  Filter by the 'agent-mesh' tag, select all, and delete.\n")
+        delete_workflows()
         print("  Waiting 15s for deletions to propagate...\n")
         time.sleep(15)
         create_all_indices()
@@ -1508,10 +1507,7 @@ def main():
         return
 
     if args.delete_workflows:
-        print("  NOTE: Automated workflow deletion is unreliable — the API duplicates")
-        print("  instead of updating. Delete workflows manually in Kibana first:")
-        print("  Filter by 'agent-mesh' tag → select all → delete.\n")
-        print("  Then re-run with --workflows-only to re-import.\n")
+        delete_workflows()
         return
 
     if args.indices_only:
