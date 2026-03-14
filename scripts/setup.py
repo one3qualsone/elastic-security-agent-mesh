@@ -55,6 +55,7 @@ except ImportError:
     sys.exit(1)
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+WORKFLOW_REGISTRY_FILE = REPO_ROOT / ".workflow-registry.json"
 
 REQUIRED_ENV_VARS = ["ELASTIC_CLOUD_URL", "KIBANA_URL", "ES_API_KEY", "KIBANA_API_KEY"]
 
@@ -728,75 +729,76 @@ def _get_deployed_workflow_names():
     return names
 
 
-def delete_workflows():
-    """Delete only mesh-deployed workflows from Kibana.
+def _save_workflow_registry(name_to_id):
+    """Persist workflow name→ID mapping for future deletion.
 
-    Builds the expected workflow name set from repo YAML files, then
-    deletes only matching workflows — leaving other workflows untouched.
-    Handles pagination by repeating the list+delete cycle until no
-    matching workflows remain.
+    The Kibana Workflows API (Technical Preview) does not support listing
+    workflows via GET. We store the IDs from import so delete_workflows()
+    can delete by ID without needing to list.
+    """
+    try:
+        WORKFLOW_REGISTRY_FILE.write_text(json.dumps(name_to_id, indent=2) + "\n")
+    except OSError as e:
+        print(f"  [WARN] Could not save workflow registry: {e}")
+
+
+def _load_workflow_registry():
+    """Load previously saved workflow name→ID mapping."""
+    if not WORKFLOW_REGISTRY_FILE.exists():
+        return {}
+    try:
+        return json.loads(WORKFLOW_REGISTRY_FILE.read_text())
+    except (json.JSONDecodeError, OSError):
+        return {}
+
+
+def delete_workflows():
+    """Delete mesh-deployed workflows from Kibana using stored IDs.
+
+    Reads workflow IDs from the registry file (saved during import) and
+    deletes each one. The Kibana Workflows API does not support listing
+    workflows, so we rely on the stored registry instead.
     """
     print("=== Deleting Mesh Workflows ===\n")
 
-    our_names = _get_deployed_workflow_names()
-    print(f"  Found {len(our_names)} workflow names in repo\n")
+    registry = _load_workflow_registry()
+    if not registry:
+        print("  No workflow registry found (.workflow-registry.json).")
+        print("  This file is created during workflow import.")
+        print("  If workflows exist from a previous deploy, delete them")
+        print("  manually in Kibana: filter by 'agent-mesh' tag → select all → delete.\n")
+        return
 
     base_url = kibana_base_url()
     headers = kibana_headers()
 
     total_deleted = 0
-    total_skipped = 0
     total_errors = 0
+    total_not_found = 0
 
-    while True:
-        resp = requests.get(
-            f"{base_url}/api/workflows",
+    print(f"  Found {len(registry)} workflows in registry\n")
+
+    for wf_name, wf_id in sorted(registry.items()):
+        del_resp = requests.delete(
+            f"{base_url}/api/workflows/{wf_id}",
             headers=headers,
-            timeout=30,
+            timeout=15,
         )
+        if del_resp.ok or del_resp.status_code == 204:
+            print(f"    [deleted] {wf_name}")
+            total_deleted += 1
+        elif del_resp.status_code == 404:
+            total_not_found += 1
+        else:
+            print(f"    [FAILED] {wf_name}: {del_resp.status_code}")
+            total_errors += 1
 
-        if not resp.ok:
-            print(f"  [FAILED] Could not list workflows: {resp.status_code}")
-            print(f"  {resp.text[:300]}")
-            return
+        time.sleep(0.1)
 
-        workflows = resp.json()
-        if not isinstance(workflows, list):
-            workflows = workflows.get("data", workflows.get("items", []))
+    if total_deleted > 0:
+        WORKFLOW_REGISTRY_FILE.unlink(missing_ok=True)
 
-        if not workflows:
-            break
-
-        deleted_this_round = 0
-        for wf in workflows:
-            wf_id = wf.get("id", "")
-            wf_name = wf.get("name", wf_id)
-            if not wf_id:
-                continue
-
-            if wf_name not in our_names:
-                total_skipped += 1
-                continue
-
-            del_resp = requests.delete(
-                f"{base_url}/api/workflows/{wf_id}",
-                headers=headers,
-                timeout=15,
-            )
-            if del_resp.ok or del_resp.status_code == 204:
-                print(f"  [deleted] {wf_name}")
-                total_deleted += 1
-                deleted_this_round += 1
-            else:
-                print(f"  [FAILED] {wf_name}: {del_resp.status_code}")
-                total_errors += 1
-
-            time.sleep(0.1)
-
-        if deleted_this_round == 0:
-            break
-
-    print(f"\n  Deleted {total_deleted} mesh workflows, skipped {total_skipped} other workflows ({total_errors} errors)\n")
+    print(f"\n  Deleted {total_deleted} workflows ({total_not_found} already gone, {total_errors} errors)\n")
 
 
 def import_workflows():
@@ -888,21 +890,21 @@ def import_workflows():
 
     print(f"\n  Total: {success} imported, {updated} updated, {failed} failed")
     print(f"  Captured {len(name_to_id)} workflow name→ID mappings\n")
+
+    _save_workflow_registry(name_to_id)
+
     return name_to_id
 
 
 def fetch_existing_workflow_ids():
-    """Fetch name→ID mapping for already-imported workflows in Kibana."""
-    base_url = kibana_base_url()
-    headers = kibana_headers()
-    resp = requests.get(f"{base_url}/api/workflows", headers=headers, timeout=30)
-    if not resp.ok:
-        print(f"  [WARN] Could not list workflows: {resp.status_code}")
-        return {}
-    workflows = resp.json()
-    if isinstance(workflows, dict):
-        workflows = workflows.get("data", workflows.get("items", []))
-    return {wf.get("name", ""): wf.get("id", "") for wf in workflows if wf.get("id")}
+    """Load name→ID mapping for already-imported workflows from the registry file."""
+    registry = _load_workflow_registry()
+    if registry:
+        print(f"  Loaded {len(registry)} workflow IDs from registry\n")
+    else:
+        print("  [WARN] No workflow registry found (.workflow-registry.json)")
+        print("  Run a full deploy or --workflows-only first to create it.\n")
+    return registry
 
 
 def fetch_existing_tool_ids():
@@ -1025,7 +1027,6 @@ def create_tools(workflow_name_to_id):
             payload = {
                 "id": tool_id,
                 "type": "index_search",
-                "name": tool_name,
                 "description": tool_def.get("description", f"Search {index_name}"),
                 "tags": ["security-mesh"],
                 "configuration": {
@@ -1048,7 +1049,7 @@ def create_tools(workflow_name_to_id):
                 tool_name_to_id[tool_name] = tool_id
                 skipped += 1
             else:
-                print(f"    [MANUAL]  {tool_name} — index_search tools require UI creation")
+                print(f"    [MANUAL]  {tool_name} — index_search tool creation failed")
                 print(f"              API response: {resp.status_code} — {resp.text[:300]}")
                 print(f"              Create manually: Agent Builder > Tools > New tool")
                 print(f"              Type: Index Search | Index: {index_name} | ID: {tool_id}")

@@ -20,6 +20,7 @@ npm-debug.log*
 
 # Internal metadata
 workflow-metadata.json
+.workflow-registry.json
 
 # Environment and secrets
 .env
