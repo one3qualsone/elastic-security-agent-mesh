@@ -138,6 +138,9 @@ tools:
   - name: Semantic Knowledge Search
     workflow: workflows/search/semantic-knowledge-search.yaml
     description: Search past incidents and playbooks
+  - name: Search Log Events
+    workflow: workflows/search/search-log-events.yaml
+    description: Search any log index by field value for investigation. Use for auth logs, app logs, network logs. Takes index_name, search_field, search_value with optional time_range and additional_filter_field/value.
   - name: Create Case
     workflow: workflows/security/response/createcasetool.yaml
     description: Create a Kibana security case for incident tracking
