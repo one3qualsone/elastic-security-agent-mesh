@@ -1446,14 +1446,31 @@ def register_agents_in_mesh(agent_name_to_builder_id):
         return
 
     url = f"{os.environ['ELASTIC_CLOUD_URL']}/agent-registry/_bulk"
-    resp = requests.post(
-        url,
-        headers={**es_headers(), "Content-Type": "application/x-ndjson"},
-        data=bulk_body,
-        timeout=30,
-    )
 
-    if resp.ok:
+    max_retries = 3
+    base_timeout = 120
+    resp = None
+    for attempt in range(1, max_retries + 1):
+        try:
+            print(f"  Bulk indexing {count} registry entries (attempt {attempt}/{max_retries}, timeout {base_timeout}s)...")
+            resp = requests.post(
+                url,
+                headers={**es_headers(), "Content-Type": "application/x-ndjson"},
+                data=bulk_body,
+                timeout=base_timeout,
+            )
+            break
+        except requests.exceptions.ReadTimeout:
+            if attempt < max_retries:
+                wait = 15 * attempt
+                print(f"  [TIMEOUT] Inference may be warming up — retrying in {wait}s...")
+                time.sleep(wait)
+            else:
+                print(f"  [FAILED] Bulk index timed out after {max_retries} attempts.")
+                print("           Check that the ML inference endpoint is deployed and responsive.")
+                raise
+
+    if resp and resp.ok:
         result = resp.json()
         errors = sum(1 for item in result.get("items", []) if item.get("index", {}).get("error"))
         print(f"  Registered {count - errors}/{count} agents in mesh")
@@ -1462,7 +1479,7 @@ def register_agents_in_mesh(agent_name_to_builder_id):
                 err = item.get("index", {}).get("error")
                 if err:
                     print(f"    [error] {err.get('reason', '')[:150]}")
-    else:
+    elif resp:
         print(f"  [FAILED] {resp.status_code} — {resp.text[:200]}")
 
     print()

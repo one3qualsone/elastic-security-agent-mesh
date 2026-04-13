@@ -61,6 +61,9 @@ inputs:
 consts:
   es_url: "__ES_URL__"
   es_api_key: "__ES_API_KEY__"
+  kibana_url: "__KIBANA_URL__"
+  kibana_space: "__KIBANA_SPACE__"
+  kibana_api_key: "__KIBANA_API_KEY__"
 
 steps:
 
@@ -94,12 +97,14 @@ steps:
 
   - name: add_approval_comment
     type: http
+    on-failure:
+      continue: true
     with:
       method: POST
-      url: "__KIBANA_URL__/s/__KIBANA_SPACE__/api/cases/{{ inputs.case_id }}/comments"
+      url: "{{ consts.kibana_url }}/s/{{ consts.kibana_space }}/api/cases/{{ inputs.case_id }}/comments"
       headers:
         Content-Type: application/json
-        Authorization: "ApiKey __KIBANA_API_KEY__"
+        Authorization: "ApiKey {{ consts.kibana_api_key }}"
         kbn-xsrf: "true"
         elastic-api-version: "2023-10-31"
       body:
